@@ -1,0 +1,116 @@
+import { Link } from '@inertiajs/react';
+import {
+    BarChart3,
+    CalendarCheck,
+    CreditCard,
+    LayoutGrid,
+    Layers,
+    LogOut,
+    Settings,
+    Users,
+} from 'lucide-react';
+import AppLogo from '@/components/app-logo';
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarHeader,
+} from '@/components/ui/sidebar';
+import { useCurrentUrl } from '@/hooks/use-current-url';
+import { dashboard, logout } from '@/routes';
+import type { NavItem } from '@/types';
+
+const mainNavItems: NavItem[] = [
+    {
+        title: 'Dashboard',
+        href: dashboard(),
+        icon: LayoutGrid,
+    },
+    {
+        title: 'Members',
+        href: '#members',
+        icon: Users,
+    },
+    {
+        title: 'Plans',
+        href: '#plans',
+        icon: Layers,
+    },
+    {
+        title: 'Attendance',
+        href: '#attendance',
+        icon: CalendarCheck,
+    },
+    {
+        title: 'Payments',
+        href: '#payments',
+        icon: CreditCard,
+    },
+    {
+        title: 'Reports',
+        href: '#reports',
+        icon: BarChart3,
+    },
+    {
+        title: 'Settings',
+        href: '#settings',
+        icon: Settings,
+    },
+    {
+        title: 'Logout',
+        href: logout(),
+        icon: LogOut,
+    },
+];
+
+export function AppSidebar() {
+    const { isCurrentUrl } = useCurrentUrl();
+
+    return (
+        <Sidebar
+            collapsible="icon"
+            variant="inset"
+            className="bg-transparent text-white [&_[data-sidebar=sidebar]]:bg-transparent [&_[data-sidebar=sidebar]]:shadow-none"
+        >
+            <SidebarHeader>
+                <div className="flex items-center gap-3 rounded-3xl bg-white/5 px-4 py-4 shadow-[0_20px_80px_-40px_rgba(15,23,42,0.8)] ring-1 ring-white/10 backdrop-blur-sm">
+                    <AppLogo />
+                </div>
+            </SidebarHeader>
+
+            <SidebarContent>
+                <div className="flex h-full flex-col justify-between rounded-[2rem] bg-gradient-to-br from-[#08101F] via-[#1D0F3D] to-[#1E174F] px-4 py-6 text-slate-200 shadow-[0_20px_80px_-40px_rgba(15,23,42,0.75)]">
+                    <nav className="flex flex-col gap-2">
+                        {mainNavItems.map((item) => {
+                            const active = isCurrentUrl(item.href);
+
+                            return (
+                                <Link
+                                    key={item.title}
+                                    href={item.href}
+                                    prefetch
+                                    method={item.title === 'Logout' ? 'post' : undefined}
+                                    className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                                        active
+                                            ? 'bg-violet-500 text-white shadow-[0_10px_30px_-20px_rgba(139,92,246,0.75)]'
+                                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                    }`}
+                                >
+                                    {item.icon && <item.icon className="h-4 w-4" />}
+                                    <span>{item.title}</span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
+                </div>
+            </SidebarContent>
+
+            <SidebarFooter className="px-4 pb-6 pt-4">
+                <div className="rounded-2xl bg-white/5 px-4 py-4 text-sm text-slate-300">
+                    <div className="font-semibold text-white">FitCore Gym</div>
+                    <div className="mt-1 text-xs text-slate-400">Membership Management</div>
+                </div>
+            </SidebarFooter>
+        </Sidebar>
+    );
+}
