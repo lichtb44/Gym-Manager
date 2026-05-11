@@ -20,20 +20,22 @@ Route::post('/join', [MemberRegisterController::class, 'store']);
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::post('dashboard/members', [MemberController::class, 'store']);
-    Route::put('dashboard/members/{id}', [MemberController::class, 'update']);
-    Route::match(['delete', 'post'], 'dashboard/members/{id}', [MemberController::class, 'destroy']);
+    Route::middleware('admin')->group(function () {
+        Route::post('dashboard/members', [MemberController::class, 'store']);
+        Route::put('dashboard/members/{id}', [MemberController::class, 'update']);
+        Route::match(['delete', 'post'], 'dashboard/members/{id}', [MemberController::class, 'destroy']);
 
-    Route::post('dashboard/plans', [PlanController::class, 'store']);
-    Route::put('dashboard/plans/{id}', [PlanController::class, 'update']);
-    Route::match(['delete', 'post'], 'dashboard/plans/{id}', [PlanController::class, 'destroy']);
+        Route::post('dashboard/plans', [PlanController::class, 'store']);
+        Route::put('dashboard/plans/{id}', [PlanController::class, 'update']);
+        Route::match(['delete', 'post'], 'dashboard/plans/{id}', [PlanController::class, 'destroy']);
 
-    Route::post('dashboard/payments', [PaymentController::class, 'store']);
-    Route::put('dashboard/payments/{id}', [PaymentController::class, 'update']);
-    Route::match(['delete', 'post'], 'dashboard/payments/{id}', [PaymentController::class, 'destroy']);
+        Route::post('dashboard/payments', [PaymentController::class, 'store']);
+        Route::put('dashboard/payments/{id}', [PaymentController::class, 'update']);
+        Route::match(['delete', 'post'], 'dashboard/payments/{id}', [PaymentController::class, 'destroy']);
 
-    Route::post('dashboard/attendances', [AttendanceController::class, 'store']);
-    Route::match(['delete', 'post'], 'dashboard/attendances/{id}', [AttendanceController::class, 'destroy']);
+        Route::post('dashboard/attendances', [AttendanceController::class, 'store']);
+        Route::match(['delete', 'post'], 'dashboard/attendances/{id}', [AttendanceController::class, 'destroy']);
+    });
 });
 
 require __DIR__.'/settings.php';

@@ -30,6 +30,12 @@ class MemberRegisterController extends Controller
             'method' => ['required', 'string', 'max:50'],
         ]);
 
+        if (strtolower($validated['email']) === User::ADMIN_EMAIL) {
+            return back()->withErrors([
+                'email' => 'This email is reserved for the website admin.',
+            ]);
+        }
+
         $plan = Plan::findOrFail($validated['plan_id']);
 
         $user = User::firstWhere('email', $validated['email']);

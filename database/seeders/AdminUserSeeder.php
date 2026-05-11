@@ -14,10 +14,10 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::firstOrCreate(
-            ['email' => 'admin@fitcore.com'],
+        User::updateOrCreate(
+            ['email' => User::ADMIN_EMAIL],
             [
-                'name' => 'FitCore Admin',
+                'name' => 'admin',
                 'password' => Hash::make('password'),
                 'role' => 'admin',
                 'email_verified_at' => now(),

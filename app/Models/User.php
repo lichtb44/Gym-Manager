@@ -16,6 +16,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
+    public const ADMIN_EMAIL = 'admin1@gmail.com';
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
 
@@ -36,5 +38,10 @@ class User extends Authenticatable
     public function member(): HasOne
     {
         return $this->hasOne(Member::class);
+    }
+
+    public function isAdmin(): bool
+    {
+        return strtolower($this->email) === self::ADMIN_EMAIL;
     }
 }

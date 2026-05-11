@@ -15,7 +15,7 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
         
-        if ($user->role === 'admin') {
+        if ($user->isAdmin()) {
             return $this->adminDashboard();
         } else {
             return $this->memberDashboard($user);
@@ -52,6 +52,15 @@ class DashboardController extends Controller
     private function memberDashboard($user)
     {
         $member = Member::where('user_id', $user->id)->first();
+        $memberProfile = $member ?: [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => null,
+            'plan' => 'No plan yet',
+            'status' => 'Pending',
+            'join_date' => optional($user->created_at)->toDateString(),
+        ];
         $plans = Plan::all();
         
         $payments = [];
@@ -74,7 +83,7 @@ class DashboardController extends Controller
         }
 
         return inertia('dashboard', [
-            'member' => $member,
+            'member' => $memberProfile,
             'plans' => $plans,
             'payments' => $payments,
             'userRole' => 'member',

@@ -1,12 +1,15 @@
-import { Link } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     BarChart3,
+    Bell,
     CalendarCheck,
     CreditCard,
+    Home,
     LayoutGrid,
     Layers,
     LogOut,
     Settings,
+    UserRound,
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -17,10 +20,11 @@ import {
     SidebarHeader,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
+import { toUrl } from '@/lib/utils';
 import { dashboard, logout } from '@/routes';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
+const adminNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
@@ -28,32 +32,75 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Members',
-        href: '#members',
+        href: '/dashboard#members',
         icon: Users,
     },
     {
         title: 'Plans',
-        href: '#plans',
+        href: '/dashboard#plans',
         icon: Layers,
     },
     {
         title: 'Attendance',
-        href: '#attendance',
+        href: '/dashboard#attendance',
         icon: CalendarCheck,
     },
     {
         title: 'Payments',
-        href: '#payments',
+        href: '/dashboard#payments',
         icon: CreditCard,
     },
     {
         title: 'Reports',
-        href: '#reports',
+        href: '/dashboard#reports',
         icon: BarChart3,
     },
     {
         title: 'Settings',
-        href: '#settings',
+        href: '/settings',
+        icon: Settings,
+    },
+    {
+        title: 'Logout',
+        href: logout(),
+        icon: LogOut,
+    },
+];
+
+const memberNavItems: NavItem[] = [
+    {
+        title: 'Dashboard',
+        href: dashboard(),
+        icon: Home,
+    },
+    {
+        title: 'My Plan',
+        href: '/dashboard#plan-details',
+        icon: Layers,
+    },
+    {
+        title: 'Attendance',
+        href: '/dashboard#attendance-overview',
+        icon: CalendarCheck,
+    },
+    {
+        title: 'Payments',
+        href: '/dashboard#payments',
+        icon: CreditCard,
+    },
+    {
+        title: 'Profile',
+        href: '/settings/profile',
+        icon: UserRound,
+    },
+    {
+        title: 'Notifications',
+        href: '/dashboard#recent-activity',
+        icon: Bell,
+    },
+    {
+        title: 'Settings',
+        href: '/settings',
         icon: Settings,
     },
     {
@@ -64,7 +111,19 @@ const mainNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { auth } = usePage().props;
     const { isCurrentUrl } = useCurrentUrl();
+    const mainNavItems =
+        auth.user?.role === 'admin' ? adminNavItems : memberNavItems;
+    const handleLogout = () => {
+        const confirmed = window.confirm('Are you sure you want to log out?');
+
+        if (!confirmed) {
+            return;
+        }
+
+        router.post(logout());
+    };
 
     return (
         <Sidebar
@@ -83,18 +142,45 @@ export function AppSidebar() {
                     <nav className="flex flex-col gap-2">
                         {mainNavItems.map((item) => {
                             const active = isCurrentUrl(item.href);
+                            const className = `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                                active
+                                    ? 'bg-violet-500 text-white shadow-[0_10px_30px_-20px_rgba(139,92,246,0.75)]'
+                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                            }`;
+
+                            if (item.title === 'Logout') {
+                                return (
+                                    <button
+                                        key={item.title}
+                                        type="button"
+                                        className={className}
+                                        onClick={handleLogout}
+                                    >
+                                        {item.icon && <item.icon className="h-4 w-4" />}
+                                        <span>{item.title}</span>
+                                    </button>
+                                );
+                            }
+
+                            if (item.title === 'Settings') {
+                                return (
+                                    <a
+                                        key={item.title}
+                                        href={toUrl(item.href)}
+                                        className={className}
+                                    >
+                                        {item.icon && <item.icon className="h-4 w-4" />}
+                                        <span>{item.title}</span>
+                                    </a>
+                                );
+                            }
 
                             return (
                                 <Link
                                     key={item.title}
                                     href={item.href}
                                     prefetch
-                                    method={item.title === 'Logout' ? 'post' : undefined}
-                                    className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                                        active
-                                            ? 'bg-violet-500 text-white shadow-[0_10px_30px_-20px_rgba(139,92,246,0.75)]'
-                                            : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                                    }`}
+                                    className={className}
                                 >
                                     {item.icon && <item.icon className="h-4 w-4" />}
                                     <span>{item.title}</span>

@@ -1,7 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { Bell, ChevronDown } from 'lucide-react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
-import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -10,6 +9,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 export function AppSidebarHeader({
@@ -18,13 +18,14 @@ export function AppSidebarHeader({
     breadcrumbs?: BreadcrumbItemType[];
 }) {
     const { auth } = usePage().props;
+    const title = auth.user?.role === 'admin' ? 'Admin Dashboard' : 'Member Portal';
 
     return (
         <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200/70 bg-white/90 px-6 backdrop-blur-xl transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
             <div className="flex items-center gap-3">
                 <SidebarTrigger className="-ml-1 text-slate-700" />
                 <div>
-                    <p className="text-sm font-semibold text-slate-900">Dashboard</p>
+                    <p className="text-sm font-semibold text-slate-900">{title}</p>
                     <Breadcrumbs breadcrumbs={breadcrumbs} />
                 </div>
             </div>

@@ -29,6 +29,9 @@ export default function VerifyEmail({ status }: { status?: string }) {
                         <TextLink
                             href={logout()}
                             method="post"
+                            onBefore={() =>
+                                window.confirm('Are you sure you want to log out?')
+                            }
                             className="mx-auto block text-sm"
                         >
                             Log out

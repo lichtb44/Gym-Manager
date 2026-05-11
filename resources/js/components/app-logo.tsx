@@ -1,6 +1,10 @@
+import { usePage } from '@inertiajs/react';
 import AppLogoIcon from '@/components/app-logo-icon';
 
 export default function AppLogo() {
+    const { auth } = usePage().props;
+    const label = auth.user?.role === 'admin' ? 'Admin Dashboard' : 'Member Portal';
+
     return (
         <>
             <div className="flex aspect-square size-8 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-sm shadow-violet-500/20">
@@ -10,7 +14,7 @@ export default function AppLogo() {
                 <span className="mb-0.5 truncate leading-tight font-semibold text-white">
                     FitCore Gym
                 </span>
-                <span className="text-xs text-slate-200/80">Admin Dashboard</span>
+                <span className="text-xs text-slate-200/80">{label}</span>
             </div>
         </>
     );

@@ -23,7 +23,11 @@ export function UserMenuContent({ user }: Props) {
         const confirmed = window.confirm(
             'Are you sure you want to log out?'
         );
-        if (!confirmed) return;
+
+        if (!confirmed) {
+            return;
+        }
+
         cleanup();
         router.post(logout());
     };

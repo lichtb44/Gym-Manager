@@ -2,9 +2,20 @@ import inertia from '@inertiajs/vite';
 import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import { execSync } from 'node:child_process';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig } from 'vite';
+
+const canRunPhp = () => {
+    try {
+        execSync('php -v', { stdio: 'ignore' });
+
+        return true;
+    } catch {
+        return false;
+    }
+};
 
 export default defineConfig({
     plugins: [
@@ -24,8 +35,9 @@ export default defineConfig({
             },
         }),
         tailwindcss(),
-        wayfinder({
-            formVariants: true,
-        }),
-    ],
+        canRunPhp() &&
+            wayfinder({
+                formVariants: true,
+            }),
+    ].filter(Boolean),
 });
