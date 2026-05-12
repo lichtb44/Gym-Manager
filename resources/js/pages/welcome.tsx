@@ -1,5 +1,6 @@
 ﻿import { Head, Link, usePage } from '@inertiajs/react';
-import { dashboard, login, register } from '@/routes';
+import AppLogoIcon from '@/components/app-logo-icon';
+import { dashboard, login, register, home } from '@/routes';
 
 export default function Welcome({
     canRegister = true,
@@ -10,143 +11,104 @@ export default function Welcome({
 
     return (
         <>
-            <Head title="GymFit - Premium Fitness Membership" />
-            <div className="min-h-screen bg-white">
-                <header className="sticky top-0 z-50 bg-white shadow-sm">
-                    <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-8">
-                                <Link href="/" className="flex items-center gap-2">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600">
-                                        <span className="text-xl font-bold text-white">GF</span>
-                                    </div>
-                                    <span className="text-2xl font-bold text-gray-900">GymFit</span>
+            <Head title="FitCore Gym - Premium Fitness Membership" />
+            <div className="grid min-h-svh bg-white lg:grid-cols-[minmax(0,1.2fr)_minmax(460px,0.8fr)]">
+                <div className="relative hidden min-h-svh overflow-hidden bg-slate-950 text-white lg:block">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_42%_38%,rgba(255,255,255,0.18),transparent_10%),linear-gradient(115deg,rgba(2,6,23,0.25),rgba(2,6,23,0.92)),linear-gradient(140deg,#111827_0%,#020617_45%,#111827_100%)]" />
+                    <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:92px_92px]" />
+                    <div className="absolute top-20 left-20 h-2 w-28 -rotate-[24deg] rounded-full bg-white/75 blur-[1px]" />
+                    <div className="absolute top-36 left-2 h-2 w-44 -rotate-[24deg] rounded-full bg-white/70 blur-[1px]" />
+                    <div className="absolute right-24 bottom-56 h-60 w-20 rounded-full border-[18px] border-slate-600/60" />
+                    <div className="absolute right-4 bottom-72 h-8 w-48 rounded-full bg-slate-700/70" />
+                    <div className="absolute right-24 bottom-72 h-48 w-8 rounded-full bg-slate-800/80" />
+                    <div className="absolute right-52 bottom-72 h-8 w-48 rounded-full bg-slate-700/70" />
+                    <div className="absolute top-36 right-1/3 text-center text-5xl font-black tracking-wide text-white/25">
+                        <AppLogoIcon className="mx-auto size-16 fill-current" />
+                        <div className="mt-2">FITCORE</div>
+                        <div>GYM</div>
+                    </div>
+                    <div className="absolute bottom-0 left-1/3 h-[520px] w-[360px] rounded-t-full bg-[radial-gradient(circle_at_50%_15%,#f3c9a8_0_10%,transparent_11%),linear-gradient(#111827_0_24%,#0f172a_25%_100%)] shadow-2xl" />
+                    <div className="absolute bottom-20 left-[calc(33%+105px)] h-8 w-64 -rotate-12 rounded-full bg-slate-500" />
+                    <div className="absolute bottom-16 left-[calc(33%+70px)] size-16 rounded-full border-[12px] border-slate-700" />
+                    <div className="absolute bottom-28 left-[calc(33%+300px)] size-16 rounded-full border-[12px] border-slate-700" />
+                    <Link
+                        href={home()}
+                        className="relative z-20 m-10 inline-flex items-center gap-3 text-lg font-semibold"
+                    >
+                        <AppLogoIcon className="size-11 fill-current text-violet-500" />
+                        <span>
+                            <span className="block leading-tight">FitCore Gym</span>
+                            <span className="block text-sm font-normal text-white/80">
+                                Membership Management
+                            </span>
+                        </span>
+                    </Link>
+                    <div className="absolute bottom-24 left-12 z-20 max-w-xl">
+                        <p className="text-sm font-semibold tracking-[0.55em] text-white/90">
+                            STRONGER EVERY DAY
+                        </p>
+                        <h1 className="mt-4 text-5xl font-black leading-tight tracking-tight">
+                            WELCOME TO
+                            <br />
+                            FITCORE GYM
+                        </h1>
+                        <p className="mt-6 max-w-lg text-xl leading-8 text-white/90">
+                            Manage memberships, plans, attendance, payments, and
+                            more, all in one place.
+                        </p>
+                    </div>
+                </div>
+                <div className="flex min-h-svh items-center justify-center px-6 py-10 lg:px-16">
+                    <div className="mx-auto flex w-full max-w-md flex-col justify-center space-y-10">
+                        <Link
+                            href={home()}
+                            className="relative z-20 flex items-center justify-center gap-3 lg:justify-start"
+                        >
+                            <AppLogoIcon className="size-14 fill-current text-violet-600" />
+                            <span>
+                                <span className="block text-2xl font-bold leading-tight text-slate-950">
+                                    FitCore Gym
+                                </span>
+                                <span className="block text-sm text-slate-600">
+                                    Membership Management
+                                </span>
+                            </span>
+                        </Link>
+                        <div className="space-y-3 text-left">
+                            <h1 className="text-2xl font-semibold text-slate-950">
+                                Welcome to FitCore Gym
+                            </h1>
+                            <p className="text-base text-slate-500">
+                                Your ultimate fitness membership management platform
+                            </p>
+                        </div>
+                        <div className="space-y-3">
+                            {auth.user ? (
+                                <Link 
+                                    href={dashboard()} 
+                                    className="flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-violet-500 to-violet-700 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-violet-500/20 hover:from-violet-600 hover:to-violet-800 transition"
+                                >
+                                    Go to Dashboard
                                 </Link>
-                                <nav className="hidden gap-8 md:flex">
-                                    <a href="#membership" className="font-medium text-gray-700 hover:text-red-600">MEMBERSHIP</a>
-                                    <a href="#why" className="font-medium text-gray-700 hover:text-red-600">WHY US</a>
-                                </nav>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                {auth.user ? (
-                                    <Link href={dashboard()} className="inline-block rounded-md bg-red-600 px-6 py-2 text-sm font-semibold text-white hover:bg-red-700">
-                                        Dashboard
+                            ) : (
+                                <>
+                                    <Link 
+                                        href={canRegister ? register() : login()} 
+                                        className="flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-violet-500 to-violet-700 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-violet-500/20 hover:from-violet-600 hover:to-violet-800 transition"
+                                    >
+                                        Get Started Now
                                     </Link>
-                                ) : (
-                                    <>
-                                        <Link href={login()} className="text-sm font-medium text-gray-700 hover:text-red-600">
-                                            Log in
-                                        </Link>
-                                        {canRegister && (
-                                            <Link href={register()} className="inline-block rounded-md bg-red-600 px-6 py-2 text-sm font-semibold text-white hover:bg-red-700">
-                                                Join Online
-                                            </Link>
-                                        )}
-                                    </>
-                                )}
-                            </div>
+                                    <Link 
+                                        href={login()} 
+                                        className="flex w-full items-center justify-center rounded-lg border-2 border-slate-200 px-6 py-2.5 text-base font-semibold text-slate-950 hover:bg-slate-50 transition"
+                                    >
+                                        Sign In
+                                    </Link>
+                                </>
+                            )}
                         </div>
                     </div>
-                </header>
-
-                <section className="relative min-h-screen overflow-hidden bg-gradient-to-br from-gray-900 via-red-900 to-gray-900">
-                    <div className="relative mx-auto max-w-7xl px-4 py-40 sm:px-6 lg:px-8">
-                        <div className="max-w-2xl">
-                            <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-red-400">BEST GYM MEMBERSHIP DEAL</p>
-                            <h1 className="mb-6 text-5xl font-bold leading-tight text-white md:text-6xl">GET UP TO 4 MONTHS FREE</h1>
-                            <p className="mb-8 text-lg text-gray-100">Join us to enjoy unlimited access to our state-of-the-art gym facilities, 300+ group fitness classes, swimming pool, and more!</p>
-                            <div className="flex flex-col gap-4 sm:flex-row">
-                                <Link href={canRegister ? register() : login()} className="inline-block rounded-md bg-red-600 px-8 py-3 text-lg font-semibold text-white hover:bg-red-700">Get Offer Now</Link>
-                                <Link href={login()} className="inline-block rounded-md border-2 border-white px-8 py-3 text-lg font-semibold text-white hover:bg-white hover:text-red-600">Learn More</Link>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section id="membership" className="bg-gray-50 py-20">
-                    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                        <div className="mb-12 text-center">
-                            <h2 className="mb-4 text-4xl font-bold text-gray-900">Membership Plans</h2>
-                            <p className="text-lg text-gray-600">Choose the perfect plan for your fitness journey</p>
-                        </div>
-                        <div className="grid gap-8 md:grid-cols-3">
-                            <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm hover:shadow-lg transition">
-                                <h3 className="mb-2 text-2xl font-bold text-gray-900">Silver</h3>
-                                <p className="mb-6 text-gray-600">Perfect for beginners</p>
-                                <div className="mb-6"><span className="text-4xl font-bold text-gray-900">$29</span><span className="text-gray-600">/month</span></div>
-                                <ul className="mb-8 space-y-3">
-                                    <li className="flex items-center gap-2"><svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg><span className="text-gray-700">Gym access</span></li>
-                                    <li className="flex items-center gap-2"><svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg><span className="text-gray-700">Standard equipment</span></li>
-                                    <li className="flex items-center gap-2"><svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg><span className="text-gray-700">Basic support</span></li>
-                                </ul>
-                                <Link href={canRegister ? register() : login()} className="block w-full rounded-md border-2 border-red-600 bg-white px-6 py-2 text-center font-semibold text-red-600 hover:bg-red-50">Get Started</Link>
-                            </div>
-
-                            <div className="relative rounded-lg border-2 border-red-600 bg-red-50 p-8 shadow-lg">
-                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-600 px-4 py-1 text-sm font-bold text-white">POPULAR</div>
-                                <h3 className="mb-2 text-2xl font-bold text-gray-900">Gold</h3>
-                                <p className="mb-6 text-gray-600">Most popular choice</p>
-                                <div className="mb-6"><span className="text-4xl font-bold text-gray-900">$49</span><span className="text-gray-600">/month</span></div>
-                                <ul className="mb-8 space-y-3">
-                                    <li className="flex items-center gap-2"><svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg><span className="text-gray-700">Unlimited gym access</span></li>
-                                    <li className="flex items-center gap-2"><svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg><span className="text-gray-700">All group classes</span></li>
-                                    <li className="flex items-center gap-2"><svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg><span className="text-gray-700">Pool access</span></li>
-                                    <li className="flex items-center gap-2"><svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg><span className="text-gray-700">Priority support</span></li>
-                                </ul>
-                                <Link href={canRegister ? register() : login()} className="block w-full rounded-md bg-red-600 px-6 py-2 text-center font-semibold text-white hover:bg-red-700">Get Started</Link>
-                            </div>
-
-                            <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm hover:shadow-lg transition">
-                                <h3 className="mb-2 text-2xl font-bold text-gray-900">Platinum</h3>
-                                <p className="mb-6 text-gray-600">Premium experience</p>
-                                <div className="mb-6"><span className="text-4xl font-bold text-gray-900">$79</span><span className="text-gray-600">/month</span></div>
-                                <ul className="mb-8 space-y-3">
-                                    <li className="flex items-center gap-2"><svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg><span className="text-gray-700">Everything in Gold</span></li>
-                                    <li className="flex items-center gap-2"><svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg><span className="text-gray-700">Personal training</span></li>
-                                    <li className="flex items-center gap-2"><svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg><span className="text-gray-700">Nutrition coaching</span></li>
-                                    <li className="flex items-center gap-2"><svg className="h-5 w-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg><span className="text-gray-700">VIP lounge access</span></li>
-                                </ul>
-                                <Link href={canRegister ? register() : login()} className="block w-full rounded-md border-2 border-red-600 bg-white px-6 py-2 text-center font-semibold text-red-600 hover:bg-red-50">Get Started</Link>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section id="why" className="bg-white py-20">
-                    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                        <div className="mb-12 text-center">
-                            <h2 className="mb-4 text-4xl font-bold text-gray-900">Why Choose GymFit?</h2>
-                            <p className="text-lg text-gray-600">Everything you need for your fitness journey</p>
-                        </div>
-                        <div className="grid gap-8 md:grid-cols-3">
-                            <div className="rounded-lg bg-gray-50 p-8">
-                                <h3 className="mb-2 text-xl font-bold text-gray-900">State-of-the-Art Equipment</h3>
-                                <p className="text-gray-600">Latest fitness equipment and technology</p>
-                            </div>
-                            <div className="rounded-lg bg-gray-50 p-8">
-                                <h3 className="mb-2 text-xl font-bold text-gray-900">Expert Trainers</h3>
-                                <p className="text-gray-600">Certified personal trainers ready to guide you</p>
-                            </div>
-                            <div className="rounded-lg bg-gray-50 p-8">
-                                <h3 className="mb-2 text-xl font-bold text-gray-900">300+ Group Classes</h3>
-                                <p className="text-gray-600">Yoga, HIIT, dance, swimming and more</p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section className="bg-red-600 py-16">
-                    <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-                        <h2 className="mb-4 text-4xl font-bold text-white">Ready to Transform Your Fitness?</h2>
-                        <Link href={canRegister ? register() : login()} className="inline-block rounded-md bg-white px-8 py-3 text-lg font-semibold text-red-600 hover:bg-red-50">Get Started Today</Link>
-                    </div>
-                </section>
-
-                <footer className="bg-gray-900 py-12">
-                    <div className="mx-auto max-w-7xl px-4 text-center text-gray-400 sm:px-6 lg:px-8">
-                        <p>&copy; 2026 GymFit. All rights reserved.</p>
-                    </div>
-                </footer>
+                </div>
             </div>
         </>
     );
