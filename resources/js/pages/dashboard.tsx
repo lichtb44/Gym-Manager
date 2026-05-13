@@ -197,6 +197,14 @@ export default function Dashboard({
         type: FormType;
         id: number | string;
     } | null>(null);
+    const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+    const [notificationOpen, setNotificationOpen] = useState(false);
+
+    const handleLogout = () => {
+        if (confirm('Are you sure you want to logout?')) {
+            router.post('/logout');
+        }
+    };
 
     const metrics = useMemo(() => {
         const activeMembers = memberRows.filter(
@@ -602,6 +610,10 @@ export default function Dashboard({
                         title="Admin Dashboard"
                         subtitle="Membership operations, attendance, and revenue"
                         name="admin"
+                        profileMenuOpen={profileMenuOpen}
+                        onProfileMenuToggle={() => setProfileMenuOpen(!profileMenuOpen)}
+                        onLogout={handleLogout}
+                        onNotification={() => setNotificationOpen(true)}
                     />
 
                     <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -905,6 +917,10 @@ export default function Dashboard({
                         title="Dashboard"
                         subtitle="Your membership, billing, and activity"
                         name={currentMember?.name ?? 'Member'}
+                        profileMenuOpen={profileMenuOpen}
+                        onProfileMenuToggle={() => setProfileMenuOpen(!profileMenuOpen)}
+                        onLogout={handleLogout}
+                        onNotification={() => setNotificationOpen(true)}
                     />
 
                     <section className="mt-6 overflow-hidden rounded-lg border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-6 py-8 shadow-sm lg:px-9">
@@ -1187,8 +1203,8 @@ function MemberPlanDetails({
                             </li>
                         ))}
                     </ul>
-                    <Button className="mt-6 w-full bg-violet-600 text-white hover:bg-violet-700">
-                        Manage Plan
+                    <Button asChild className="mt-6 w-full bg-violet-600 text-white hover:bg-violet-700">
+                        <a href="/dashboard#plans">Manage Plan</a>
                     </Button>
                 </div>
                 <div>
@@ -1382,10 +1398,18 @@ function TopBar({
     title,
     subtitle,
     name,
+    profileMenuOpen = false,
+    onProfileMenuToggle = () => {},
+    onLogout = () => {},
+    onNotification = () => {},
 }: {
     title: string;
     subtitle: string;
     name: string;
+    profileMenuOpen?: boolean;
+    onProfileMenuToggle?: () => void;
+    onLogout?: () => void;
+    onNotification?: () => void;
 }) {
     return (
         <header className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -1399,29 +1423,53 @@ function TopBar({
                 </h1>
                 <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 relative">
                 <Button
                     variant="outline"
                     size="icon"
                     aria-label="Notifications"
+                    onClick={onNotification}
+                    className="relative hover:bg-blue-50 hover:text-blue-600"
                 >
                     <Bell className="size-4" />
+                    <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
                 </Button>
                 <Button asChild variant="outline" size="icon" aria-label="Settings">
                     <a href="/settings/profile">
                         <Settings className="size-4" />
                     </a>
                 </Button>
-                <div className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
-                    <div className="flex size-9 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white">
-                        {initials(name)}
-                    </div>
-                    <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-950">
-                            {name}
-                        </p>
-                        <p className="text-xs text-slate-500">Profile</p>
-                    </div>
+                <div className="relative">
+                    <button
+                        onClick={onProfileMenuToggle}
+                        className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 hover:bg-slate-50 transition-colors"
+                    >
+                        <div className="flex size-9 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white">
+                            {initials(name)}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-950">
+                                {name}
+                            </p>
+                            <p className="text-xs text-slate-500">Profile</p>
+                        </div>
+                    </button>
+                    
+                    {profileMenuOpen && (
+                        <div className="absolute right-0 top-full mt-2 w-48 rounded-lg border border-slate-200 bg-white shadow-lg z-50">
+                            <Button asChild variant="ghost" className="w-full justify-start rounded-none border-b">
+                                <a href="/settings/profile">
+                                    Edit Profile
+                                </a>
+                            </Button>
+                            <button
+                                onClick={onLogout}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-rose-600 transition-colors rounded-b-lg"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </header>
