@@ -42,6 +42,7 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return strtolower($this->email) === self::ADMIN_EMAIL;
+        return $this->role === 'admin'
+            || strtolower($this->email) === self::ADMIN_EMAIL;
     }
 }

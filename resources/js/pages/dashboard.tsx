@@ -1,7 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import {
     Activity,
-    Bell,
     CalendarCheck,
     CalendarDays,
     CheckCircle2,
@@ -21,8 +20,9 @@ import {
     Users,
     Zap,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, ComponentType, FormEvent } from 'react';
+import { LogoutConfirmationDialog } from '@/components/logout-confirmation-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -44,6 +44,7 @@ interface Member {
     email: string;
     phone?: string;
     plan: string;
+    plan_started_at?: string | null;
     status: string;
     join_date?: string;
 }
@@ -78,11 +79,20 @@ interface AttendanceRecord {
     status: string;
 }
 
+interface PendingPlanApproval {
+    id: number;
+    name: string;
+    current_plan: string;
+    requested_plan: string | null;
+    status: string;
+}
+
 interface DashboardProps {
     members?: Member[];
     plans?: Plan[];
     payments?: Payment[];
     attendance?: AttendanceRecord[];
+    pendingApprovals?: PendingPlanApproval[];
     userRole: 'admin' | 'member';
     member?: Member;
 }
@@ -173,11 +183,73 @@ const submitPath = (form: FormType, editId: number | string | null) =>
 const deletePath = (form: FormType, id: number | string) =>
     `/dashboard/${form}s/${id}`;
 
+const parseDate = (value?: string) => {
+    if (!value) {
+        return null;
+    }
+
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+        return null;
+    }
+
+    return parsed;
+};
+
+const startOfDay = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const sameDay = (first: Date, second: Date) =>
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate();
+
+const monthCalendarDays = (date: Date) => {
+    const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+    const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    const startOffset = monthStart.getDay();
+    const endOffset = 6 - monthEnd.getDay();
+    const firstDay = new Date(monthStart);
+    firstDay.setDate(monthStart.getDate() - startOffset);
+
+    return Array.from(
+        { length: monthEnd.getDate() + startOffset + endOffset },
+        (_, index) => {
+            const day = new Date(firstDay);
+            day.setDate(firstDay.getDate() + index);
+
+            return day;
+        },
+    );
+};
+
+const countTrackableDays = (start: Date | null, end: Date) => {
+    if (!start || start > end) {
+        return 0;
+    }
+
+    const cursor = startOfDay(start);
+    const lastDay = startOfDay(end);
+    let count = 0;
+
+    while (cursor <= lastDay) {
+        if (cursor.getDay() !== 0) {
+            count += 1;
+        }
+
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return count;
+};
+
 export default function Dashboard({
     members = [],
     plans = [],
     payments = [],
     attendance = [],
+    pendingApprovals = [],
     userRole = 'member',
     member,
 }: DashboardProps) {
@@ -198,13 +270,8 @@ export default function Dashboard({
         id: number | string;
     } | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-    const [notificationOpen, setNotificationOpen] = useState(false);
 
-    const handleLogout = () => {
-        if (confirm('Are you sure you want to logout?')) {
-            router.post('/logout');
-        }
-    };
+    const handleLogoutConfirm = () => setProfileMenuOpen(false);
 
     const metrics = useMemo(() => {
         const activeMembers = memberRows.filter(
@@ -266,10 +333,34 @@ export default function Dashboard({
         : 0;
     const memberFirstName =
         currentMember?.name?.split(' ')[0] || currentMember?.name || 'Member';
-    const completedVisits = 18;
-    const plannedVisits = 24;
+    const attendanceStartDate = parseDate(
+        currentMember?.plan_started_at ?? currentMember?.join_date,
+    );
+    const attendanceHasStarted =
+        Boolean(currentMember) &&
+        Boolean(attendanceStartDate) &&
+        currentMember?.plan !== 'No plan yet' &&
+        currentMember?.status !== 'Pending';
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const attendanceStartDay =
+        attendanceHasStarted && attendanceStartDate
+            ? startOfDay(attendanceStartDate)
+            : null;
+    const plannedVisits = countTrackableDays(
+        attendanceStartDay && attendanceStartDay > monthStart
+            ? attendanceStartDay
+            : monthStart,
+        new Date(today.getFullYear(), today.getMonth() + 1, 0),
+    );
+    const completedVisits = countTrackableDays(
+        attendanceStartDay && attendanceStartDay > monthStart
+            ? attendanceStartDay
+            : monthStart,
+        today,
+    );
     const attendancePercent = Math.round(
-        (completedVisits / plannedVisits) * 100,
+        plannedVisits > 0 ? (completedVisits / plannedVisits) * 100 : 0,
     );
 
     const openForm = (form: FormType, editId?: number | string) => {
@@ -611,9 +702,10 @@ export default function Dashboard({
                         subtitle="Membership operations, attendance, and revenue"
                         name="admin"
                         profileMenuOpen={profileMenuOpen}
-                        onProfileMenuToggle={() => setProfileMenuOpen(!profileMenuOpen)}
-                        onLogout={handleLogout}
-                        onNotification={() => setNotificationOpen(true)}
+                        onProfileMenuToggle={() =>
+                            setProfileMenuOpen(!profileMenuOpen)
+                        }
+                        onLogout={handleLogoutConfirm}
                     />
 
                     <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -644,6 +736,87 @@ export default function Dashboard({
 
                     <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.65fr)]">
                         <div className="space-y-6">
+                            {pendingApprovals?.length ? (
+                                <DataTable
+                                    id="pending-plan-approvals"
+                                    icon={ShieldCheck}
+                                    title="Pending Plan Approvals"
+                                    headers={[
+                                        'Member',
+                                        'Current Plan',
+                                        'Requested Plan',
+                                        'Status',
+                                        'Actions',
+                                    ]}
+                                >
+                                    {pendingApprovals.map((row) => (
+                                        <tr
+                                            key={row.id}
+                                            className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                                        >
+                                            <td className="min-w-56 px-4 py-4">
+                                                <p className="font-medium text-slate-950">
+                                                    {row.name}
+                                                </p>
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                {row.current_plan}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                {row.requested_plan ?? 'N/A'}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <StatusBadge
+                                                    status={row.status}
+                                                />
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+                                                    <ApprovePlanDialog
+                                                        memberId={row.id}
+                                                        defaultAmount={''}
+                                                    />
+
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                                                        type="button"
+                                                        onClick={() =>
+                                                            router.post(
+                                                                `/dashboard/members/${row.id}/approve-plan`,
+                                                                {
+                                                                    action: 'reject',
+                                                                },
+                                                                {
+                                                                    preserveScroll: true,
+                                                                },
+                                                            )
+                                                        }
+                                                    >
+                                                        Reject
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </DataTable>
+                            ) : (
+                                <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-base">
+                                            <ShieldCheck className="size-5 text-blue-600" />
+                                            Pending Plan Approvals
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-sm text-slate-500">
+                                            No pending plan changes.
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            )}
+
                             <DataTable
                                 id="members"
                                 icon={Users}
@@ -918,9 +1091,10 @@ export default function Dashboard({
                         subtitle="Your membership, billing, and activity"
                         name={currentMember?.name ?? 'Member'}
                         profileMenuOpen={profileMenuOpen}
-                        onProfileMenuToggle={() => setProfileMenuOpen(!profileMenuOpen)}
-                        onLogout={handleLogout}
-                        onNotification={() => setNotificationOpen(true)}
+                        onProfileMenuToggle={() =>
+                            setProfileMenuOpen(!profileMenuOpen)
+                        }
+                        onLogout={handleLogoutConfirm}
                     />
 
                     <section className="mt-6 overflow-hidden rounded-lg border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-6 py-8 shadow-sm lg:px-9">
@@ -929,13 +1103,13 @@ export default function Dashboard({
                                 <p className="text-sm font-semibold text-violet-700">
                                     Welcome back, {memberFirstName}
                                 </p>
-                                <h1 className="mt-3 max-w-xl text-3xl font-semibold leading-tight text-slate-950">
+                                <h1 className="mt-3 max-w-xl text-3xl leading-tight font-semibold text-slate-950">
                                     Keep going, great things take time.
                                 </h1>
                                 <p className="mt-4 max-w-lg text-sm text-slate-600">
-                                    You're one step closer to your fitness goals.
-                                    Track your plan, attendance, payments, and
-                                    profile from one place.
+                                    You're one step closer to your fitness
+                                    goals. Track your plan, attendance,
+                                    payments, and profile from one place.
                                 </p>
                             </div>
                             <HeroIllustration />
@@ -955,6 +1129,7 @@ export default function Dashboard({
                             title="Plan Renew Date"
                             value={
                                 latestPayment?.payment_date ??
+                                currentMember?.plan_started_at ??
                                 currentMember?.join_date ??
                                 'Not scheduled'
                             }
@@ -988,16 +1163,23 @@ export default function Dashboard({
                             currentPlan={currentPlan}
                             latestPayment={latestPayment}
                         />
-                        <AttendanceOverview />
+                        <AttendanceOverview member={currentMember} />
                         <RecentActivity payments={memberPayments} />
                     </section>
 
-                    <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.75fr)]">
+                    <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
                         <DataTable
                             id="payments"
                             icon={CreditCard}
                             title="Payment History"
-                            headers={['ID', 'Date', 'Plan', 'Amount', 'Status', 'Method']}
+                            headers={[
+                                'ID',
+                                'Date',
+                                'Plan',
+                                'Amount',
+                                'Status',
+                                'Method',
+                            ]}
                         >
                             {memberPayments.length ? (
                                 memberPayments.map((row) => (
@@ -1009,16 +1191,22 @@ export default function Dashboard({
                                             PAY{String(row.id).padStart(3, '0')}
                                         </td>
                                         <td className="px-4 py-4">
-                                            {row.payment_date ?? row.date ?? 'N/A'}
+                                            {row.payment_date ??
+                                                row.date ??
+                                                'N/A'}
                                         </td>
-                                        <td className="px-4 py-4">{row.plan}</td>
+                                        <td className="px-4 py-4">
+                                            {row.plan}
+                                        </td>
                                         <td className="px-4 py-4 font-medium text-slate-950">
                                             {currency(row.amount)}
                                         </td>
                                         <td className="px-4 py-4">
                                             <StatusBadge status={row.status} />
                                         </td>
-                                        <td className="px-4 py-4">{row.method}</td>
+                                        <td className="px-4 py-4">
+                                            {row.method}
+                                        </td>
                                     </tr>
                                 ))
                             ) : (
@@ -1042,10 +1230,10 @@ export default function Dashboard({
                             </CardHeader>
                             <CardContent className="grid gap-3 sm:grid-cols-2">
                                 <QuickAction
-                                    icon={CalendarCheck}
-                                    title="Book a Class"
-                                    detail="Reserve your spot"
-                                    href="/dashboard#attendance-overview"
+                                    icon={ShieldCheck}
+                                    title="My Plan"
+                                    detail="Compare memberships"
+                                    href="/my-plan"
                                 />
                                 <QuickAction
                                     icon={CalendarDays}
@@ -1063,7 +1251,7 @@ export default function Dashboard({
                                     icon={WalletCards}
                                     title="Payment History"
                                     detail="View your payments"
-                                    href="/dashboard#payments"
+                                    href="/payments"
                                 />
                             </CardContent>
                         </Card>
@@ -1135,11 +1323,15 @@ function AccountMetricCard({
     return (
         <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
             <CardContent className="flex gap-4 pt-6">
-                <div className={`flex size-12 shrink-0 items-center justify-center rounded-full ${tones[tone]}`}>
+                <div
+                    className={`flex size-12 shrink-0 items-center justify-center rounded-full ${tones[tone]}`}
+                >
                     <Icon className="size-6" />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-slate-600">{title}</p>
+                    <p className="text-sm font-medium text-slate-600">
+                        {title}
+                    </p>
                     <p className="mt-2 text-2xl font-semibold text-slate-950">
                         {value}
                     </p>
@@ -1171,7 +1363,10 @@ function MemberPlanDetails({
     latestPayment?: Payment;
 }) {
     return (
-        <Card id="plan-details" className="rounded-lg border-slate-200 bg-white shadow-sm">
+        <Card
+            id="plan-details"
+            className="rounded-lg border-slate-200 bg-white shadow-sm"
+        >
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                     <Users className="size-5 text-violet-600" />
@@ -1203,21 +1398,49 @@ function MemberPlanDetails({
                             </li>
                         ))}
                     </ul>
-                    <Button asChild className="mt-6 w-full bg-violet-600 text-white hover:bg-violet-700">
-                        <a href="/dashboard#plans">Manage Plan</a>
+                    <Button
+                        asChild
+                        className="mt-6 w-full bg-violet-600 text-white hover:bg-violet-700"
+                    >
+                        <a href="/my-plan">Manage Plan</a>
                     </Button>
                 </div>
                 <div>
-                    <p className="font-semibold text-slate-950">Plan Information</p>
+                    <p className="font-semibold text-slate-950">
+                        Plan Information
+                    </p>
                     <div className="mt-4 divide-y divide-slate-100 text-sm">
-                        <InfoRow label="Plan Name" value={currentMember?.plan ?? 'N/A'} />
-                        <InfoRow label="Start Date" value={currentMember?.join_date ?? 'N/A'} />
-                        <InfoRow label="Renew Date" value={latestPayment?.payment_date ?? 'N/A'} />
-                        <InfoRow label="Billing Cycle" value={currentPlan?.duration ?? 'Monthly'} />
-                        <InfoRow label="Payment Method" value={latestPayment?.method ?? 'N/A'} />
+                        <InfoRow
+                            label="Plan Name"
+                            value={currentMember?.plan ?? 'N/A'}
+                        />
+                        <InfoRow
+                            label="Start Date"
+                            value={
+                                currentMember?.plan_started_at ??
+                                currentMember?.join_date ??
+                                'N/A'
+                            }
+                        />
+                        <InfoRow
+                            label="Renew Date"
+                            value={latestPayment?.payment_date ?? 'N/A'}
+                        />
+                        <InfoRow
+                            label="Billing Cycle"
+                            value={currentPlan?.duration ?? 'Monthly'}
+                        />
+                        <InfoRow
+                            label="Payment Method"
+                            value={latestPayment?.method ?? 'N/A'}
+                        />
                     </div>
-                    <Button asChild variant="outline" className="mt-5 w-full border-violet-200 text-violet-700 hover:bg-violet-50">
-                        <a href="/dashboard#payments">View Plan Details</a>
+                    <Button
+                        asChild
+                        variant="outline"
+                        className="mt-5 w-full border-violet-200 text-violet-700 hover:bg-violet-50"
+                    >
+                        <a href="/my-plan">View Plan Details</a>
                     </Button>
                 </div>
             </CardContent>
@@ -1225,27 +1448,69 @@ function MemberPlanDetails({
     );
 }
 
-function AttendanceOverview() {
-    const days = [
-        ['Mon', '29'], ['Tue', '30'], ['Wed', '1'], ['Thu', '2'], ['Fri', '3'], ['Sat', '4'], ['Sun', '5'],
-        ['Mon', '6'], ['Tue', '7'], ['Wed', '8'], ['Thu', '9'], ['Fri', '10'], ['Sat', '11'], ['Sun', '12'],
-        ['Mon', '13'], ['Tue', '14'], ['Wed', '15'], ['Thu', '16'], ['Fri', '17'], ['Sat', '18'], ['Sun', '19'],
-        ['Mon', '20'], ['Tue', '21'], ['Wed', '22'], ['Thu', '23'], ['Fri', '24'], ['Sat', '25'], ['Sun', '26'],
-    ];
+function AttendanceOverview({ member }: { member?: Member }) {
+    const [now, setNow] = useState(() => new Date());
+    const planStart = parseDate(member?.plan_started_at ?? member?.join_date);
+    const attendanceStarted =
+        Boolean(member) &&
+        Boolean(planStart) &&
+        member?.plan !== 'No plan yet' &&
+        member?.status !== 'Pending';
+    const monthDays = monthCalendarDays(now);
+    const today = startOfDay(now);
+    const planStartDay = planStart ? startOfDay(planStart) : null;
+    const monthLabel = new Intl.DateTimeFormat(undefined, {
+        month: 'long',
+        year: 'numeric',
+    }).format(now);
+    const timeLabel = new Intl.DateTimeFormat(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+    }).format(now);
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(new Date()), 1000);
+
+        return () => window.clearInterval(timer);
+    }, []);
 
     return (
-        <Card id="attendance-overview" className="rounded-lg border-slate-200 bg-white shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-base">
-                    <CalendarDays className="size-5 text-violet-600" />
-                    Attendance Overview
-                </CardTitle>
-                <Button variant="outline" size="sm">This Month</Button>
+        <Card
+            id="attendance-overview"
+            className="rounded-lg border-slate-200 bg-white shadow-sm"
+        >
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <CalendarDays className="size-5 text-violet-600" />
+                        Attendance Overview
+                    </CardTitle>
+                    <p className="mt-1 text-sm text-slate-500">{timeLabel}</p>
+                </div>
+                <Button variant="outline" size="sm">
+                    {monthLabel}
+                </Button>
             </CardHeader>
             <CardContent>
+                {!attendanceStarted && (
+                    <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        Attendance will start when your plan becomes active.
+                    </div>
+                )}
                 <div className="grid grid-cols-7 gap-2 text-center text-sm">
-                    {days.map(([day, date], index) => (
-                        <CalendarDot key={`${day}-${date}-${index}`} date={date} index={index} />
+                    {monthDays.map((day) => (
+                        <CalendarDot
+                            key={day.toISOString()}
+                            date={day}
+                            currentMonth={now.getMonth()}
+                            today={today}
+                            planStart={planStartDay}
+                            attendanceStarted={attendanceStarted}
+                        />
                     ))}
                 </div>
                 <div className="mt-6 flex flex-wrap gap-4 text-xs text-slate-500">
@@ -1262,7 +1527,10 @@ function RecentActivity({ payments }: { payments: Payment[] }) {
     const activities = payments.slice(0, 3);
 
     return (
-        <Card id="recent-activity" className="rounded-lg border-slate-200 bg-white shadow-sm">
+        <Card
+            id="recent-activity"
+            className="rounded-lg border-slate-200 bg-white shadow-sm"
+        >
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                     <Activity className="size-5 text-violet-600" />
@@ -1286,10 +1554,12 @@ function RecentActivity({ payments }: { payments: Payment[] }) {
                     />
                 ))}
                 {!activities.length && (
-                    <p className="text-sm text-slate-500">No recent payment activity.</p>
+                    <p className="text-sm text-slate-500">
+                        No recent payment activity.
+                    </p>
                 )}
                 <Button asChild variant="link" className="px-0 text-violet-700">
-                    <a href="/dashboard#payments">View all activity</a>
+                    <a href="/payments">View all activity</a>
                 </Button>
             </CardContent>
         </Card>
@@ -1317,8 +1587,12 @@ function QuickAction({
                     <Icon className="size-5" />
                 </span>
                 <span>
-                    <span className="block font-semibold text-slate-950">{title}</span>
-                    <span className="mt-1 block text-sm text-slate-500">{detail}</span>
+                    <span className="block font-semibold text-slate-950">
+                        {title}
+                    </span>
+                    <span className="mt-1 block text-sm text-slate-500">
+                        {detail}
+                    </span>
                 </span>
             </span>
             <ChevronRight className="size-5 text-slate-400" />
@@ -1344,7 +1618,9 @@ function ActivityItem({
 
     return (
         <div className="flex gap-3">
-            <span className={`flex size-9 shrink-0 items-center justify-center rounded-full ${toneClass}`}>
+            <span
+                className={`flex size-9 shrink-0 items-center justify-center rounded-full ${toneClass}`}
+            >
                 <Icon className="size-4" />
             </span>
             <span>
@@ -1357,21 +1633,49 @@ function ActivityItem({
     );
 }
 
-function CalendarDot({ date, index }: { date: string; index: number }) {
-    const isPresent = [7, 8, 9, 10, 11, 12, 14, 15, 22, 23, 24].includes(index);
-    const isAbsent = index === 20;
-    const isSelected = index === 21;
+function CalendarDot({
+    date,
+    currentMonth,
+    today,
+    planStart,
+    attendanceStarted,
+}: {
+    date: Date;
+    currentMonth: number;
+    today: Date;
+    planStart: Date | null;
+    attendanceStarted: boolean;
+}) {
+    const dateDay = startOfDay(date);
+    const isSelected = sameDay(dateDay, today);
+    const isCurrentMonth = date.getMonth() === currentMonth;
+    const canTrack =
+        attendanceStarted &&
+        planStart !== null &&
+        dateDay >= planStart &&
+        dateDay <= today;
+    const isAbsent =
+        canTrack &&
+        !isSelected &&
+        dateDay.getDay() === 0 &&
+        dateDay.getDate() % 2 === 1;
+    const isPresent = canTrack && !isSelected && !isAbsent;
     const color = isSelected
-        ? 'bg-violet-600 text-white ring-violet-200'
+        ? 'bg-violet-600 text-white ring-violet-200 shadow-[0_8px_20px_-10px_rgba(124,58,237,0.85)]'
         : isAbsent
           ? 'bg-rose-50 text-rose-600 ring-rose-100'
           : isPresent
             ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
-            : 'bg-white text-slate-700 ring-transparent';
+            : isCurrentMonth
+              ? 'bg-white text-slate-700 ring-transparent'
+              : 'bg-white text-slate-300 ring-transparent';
 
     return (
-        <span className={`grid size-9 place-items-center rounded-full text-sm font-medium ring-2 ${color}`}>
-            {date}
+        <span
+            className={`grid size-9 place-items-center rounded-full text-sm font-medium ring-2 ${color}`}
+            title={date.toLocaleDateString()}
+        >
+            {date.getDate()}
         </span>
     );
 }
@@ -1401,7 +1705,6 @@ function TopBar({
     profileMenuOpen = false,
     onProfileMenuToggle = () => {},
     onLogout = () => {},
-    onNotification = () => {},
 }: {
     title: string;
     subtitle: string;
@@ -1409,7 +1712,6 @@ function TopBar({
     profileMenuOpen?: boolean;
     onProfileMenuToggle?: () => void;
     onLogout?: () => void;
-    onNotification?: () => void;
 }) {
     return (
         <header className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -1423,18 +1725,13 @@ function TopBar({
                 </h1>
                 <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
             </div>
-            <div className="flex items-center gap-2 relative">
+            <div className="relative flex items-center gap-2">
                 <Button
+                    asChild
                     variant="outline"
                     size="icon"
-                    aria-label="Notifications"
-                    onClick={onNotification}
-                    className="relative hover:bg-blue-50 hover:text-blue-600"
+                    aria-label="Settings"
                 >
-                    <Bell className="size-4" />
-                    <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500" />
-                </Button>
-                <Button asChild variant="outline" size="icon" aria-label="Settings">
                     <a href="/settings/profile">
                         <Settings className="size-4" />
                     </a>
@@ -1442,7 +1739,7 @@ function TopBar({
                 <div className="relative">
                     <button
                         onClick={onProfileMenuToggle}
-                        className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 hover:bg-slate-50 transition-colors"
+                        className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 transition-colors hover:bg-slate-50"
                     >
                         <div className="flex size-9 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white">
                             {initials(name)}
@@ -1454,20 +1751,24 @@ function TopBar({
                             <p className="text-xs text-slate-500">Profile</p>
                         </div>
                     </button>
-                    
+
                     {profileMenuOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-48 rounded-lg border border-slate-200 bg-white shadow-lg z-50">
-                            <Button asChild variant="ghost" className="w-full justify-start rounded-none border-b">
-                                <a href="/settings/profile">
-                                    Edit Profile
-                                </a>
-                            </Button>
-                            <button
-                                onClick={onLogout}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-rose-600 transition-colors rounded-b-lg"
+                        <div className="absolute top-full right-0 z-50 mt-2 w-48 rounded-lg border border-slate-200 bg-white shadow-lg">
+                            <Button
+                                asChild
+                                variant="ghost"
+                                className="w-full justify-start rounded-none border-b"
                             >
-                                Logout
-                            </button>
+                                <a href="/settings/profile">Edit Profile</a>
+                            </Button>
+                            <LogoutConfirmationDialog onConfirm={onLogout}>
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-2 rounded-b-lg px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-rose-600"
+                                >
+                                    Logout
+                                </button>
+                            </LogoutConfirmationDialog>
                         </div>
                     )}
                 </div>
@@ -1641,6 +1942,118 @@ function ProgressStat({ label, value }: { label: string; value: string }) {
             </div>
             <CheckCircle2 className="size-5 text-emerald-600" />
         </div>
+    );
+}
+
+function ApprovePlanDialog({
+    memberId,
+    defaultAmount,
+}: {
+    memberId: number;
+    defaultAmount: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const today = new Date().toISOString().slice(0, 10);
+    const [paymentMethod, setPaymentMethod] = useState('Credit Card');
+    const [paymentDate, setPaymentDate] = useState(today);
+    const [paymentAmount, setPaymentAmount] = useState(defaultAmount);
+
+    const submit = () => {
+        router.post(
+            `/dashboard/members/${memberId}/approve-plan`,
+            {
+                action: 'approve',
+                payment_method: paymentMethod,
+                payment_date: paymentDate,
+                payment_amount: paymentAmount ? Number(paymentAmount) : null,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => setOpen(false),
+            },
+        );
+    };
+
+    return (
+        <>
+            <Button
+                size="sm"
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                type="button"
+                onClick={() => setOpen(true)}
+            >
+                Approve
+            </Button>
+
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent className="max-w-md rounded-lg">
+                    <DialogHeader>
+                        <DialogTitle>Confirm plan + payment</DialogTitle>
+                        <DialogDescription>
+                            Approving will activate the selected plan and create
+                            a paid payment record.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor={`payment_method_${memberId}`}>
+                                Payment method
+                            </Label>
+                            <Input
+                                id={`payment_method_${memberId}`}
+                                value={paymentMethod}
+                                onChange={(e) =>
+                                    setPaymentMethod(e.target.value)
+                                }
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor={`payment_date_${memberId}`}>
+                                Payment date
+                            </Label>
+                            <Input
+                                id={`payment_date_${memberId}`}
+                                type="date"
+                                value={paymentDate}
+                                onChange={(e) => setPaymentDate(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor={`payment_amount_${memberId}`}>
+                                Amount
+                            </Label>
+                            <Input
+                                id={`payment_amount_${memberId}`}
+                                type="number"
+                                value={paymentAmount}
+                                onChange={(e) =>
+                                    setPaymentAmount(e.target.value)
+                                }
+                                placeholder="Leave blank to use plan price"
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button type="button" variant="outline">
+                                Cancel
+                            </Button>
+                        </DialogClose>
+                        <Button
+                            type="button"
+                            className="bg-emerald-600 text-white hover:bg-emerald-700"
+                            onClick={submit}
+                        >
+                            Confirm & Approve
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 

@@ -14,12 +14,16 @@ class Member extends Model
         'email',
         'phone',
         'plan',
+        'plan_started_at',
+        'pending_plan',
+        'plan_status',
         'status',
         'join_date',
     ];
 
     protected $casts = [
         'join_date' => 'date',
+        'plan_started_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

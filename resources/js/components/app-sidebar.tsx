@@ -1,7 +1,6 @@
-import { Link, router, usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     BarChart3,
-    Bell,
     CalendarCheck,
     CreditCard,
     Home,
@@ -13,6 +12,7 @@ import {
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
+import { LogoutConfirmationDialog } from '@/components/logout-confirmation-dialog';
 import {
     Sidebar,
     SidebarContent,
@@ -75,28 +75,23 @@ const memberNavItems: NavItem[] = [
     },
     {
         title: 'My Plan',
-        href: '/dashboard#plan-details',
+        href: '/my-plan',
         icon: Layers,
     },
     {
         title: 'Attendance',
-        href: '/dashboard#attendance-overview',
+        href: '/attendance',
         icon: CalendarCheck,
     },
     {
         title: 'Payments',
-        href: '/dashboard#payments',
+        href: '/payments',
         icon: CreditCard,
     },
     {
         title: 'Profile',
         href: '/settings/profile',
         icon: UserRound,
-    },
-    {
-        title: 'Notifications',
-        href: '/dashboard#recent-activity',
-        icon: Bell,
     },
     {
         title: 'Settings',
@@ -115,15 +110,6 @@ export function AppSidebar() {
     const { isCurrentUrl } = useCurrentUrl();
     const mainNavItems =
         auth.user?.role === 'admin' ? adminNavItems : memberNavItems;
-    const handleLogout = () => {
-        const confirmed = window.confirm('Are you sure you want to log out?');
-
-        if (!confirmed) {
-            return;
-        }
-
-        router.post(logout());
-    };
 
     return (
         <Sidebar
@@ -150,15 +136,17 @@ export function AppSidebar() {
 
                             if (item.title === 'Logout') {
                                 return (
-                                    <button
-                                        key={item.title}
-                                        type="button"
-                                        className={className}
-                                        onClick={handleLogout}
-                                    >
-                                        {item.icon && <item.icon className="h-4 w-4" />}
-                                        <span>{item.title}</span>
-                                    </button>
+                                    <LogoutConfirmationDialog key={item.title}>
+                                        <button
+                                            type="button"
+                                            className={className}
+                                        >
+                                            {item.icon && (
+                                                <item.icon className="h-4 w-4" />
+                                            )}
+                                            <span>{item.title}</span>
+                                        </button>
+                                    </LogoutConfirmationDialog>
                                 );
                             }
 
@@ -169,7 +157,9 @@ export function AppSidebar() {
                                         href={toUrl(item.href)}
                                         className={className}
                                     >
-                                        {item.icon && <item.icon className="h-4 w-4" />}
+                                        {item.icon && (
+                                            <item.icon className="h-4 w-4" />
+                                        )}
                                         <span>{item.title}</span>
                                     </a>
                                 );
@@ -182,7 +172,9 @@ export function AppSidebar() {
                                     prefetch
                                     className={className}
                                 >
-                                    {item.icon && <item.icon className="h-4 w-4" />}
+                                    {item.icon && (
+                                        <item.icon className="h-4 w-4" />
+                                    )}
                                     <span>{item.title}</span>
                                 </Link>
                             );
@@ -191,10 +183,12 @@ export function AppSidebar() {
                 </div>
             </SidebarContent>
 
-            <SidebarFooter className="px-4 pb-6 pt-4">
+            <SidebarFooter className="px-4 pt-4 pb-6">
                 <div className="rounded-2xl bg-white/5 px-4 py-4 text-sm text-slate-300">
                     <div className="font-semibold text-white">FitCore Gym</div>
-                    <div className="mt-1 text-xs text-slate-400">Membership Management</div>
+                    <div className="mt-1 text-xs text-slate-400">
+                        Membership Management
+                    </div>
                 </div>
             </SidebarFooter>
         </Sidebar>
