@@ -1,15 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    CheckCircle2,
     CreditCard,
     DollarSign,
     Dumbbell,
     ReceiptText,
     WalletCards,
 } from 'lucide-react';
+import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { FormEvent } from 'react';
 
 interface Member {
     id: number;

@@ -18,6 +18,9 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('phone')->nullable();
             $table->string('plan')->default('Basic');
+            $table->timestamp('plan_started_at')->nullable();
+            $table->string('pending_plan')->nullable();
+            $table->string('plan_status')->default('active');
             $table->string('status')->default('Active');
             $table->date('join_date')->useCurrent();
             $table->timestamps();

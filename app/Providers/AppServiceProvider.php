@@ -5,6 +5,7 @@ namespace App\Providers;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -24,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->ensureMemberPlanColumns();
     }
 
     /**
@@ -83,5 +85,30 @@ class AppServiceProvider extends ServiceProvider
     {
         return str_starts_with($path, '/')
             || preg_match('/^[A-Za-z]:[\/\\\\]/', $path) === 1;
+    }
+
+    protected function ensureMemberPlanColumns(): void
+    {
+        if (!Schema::hasTable('members')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('members', 'plan_started_at')) {
+            Schema::table('members', function ($table) {
+                $table->timestamp('plan_started_at')->nullable()->after('plan');
+            });
+        }
+
+        if (!Schema::hasColumn('members', 'pending_plan')) {
+            Schema::table('members', function ($table) {
+                $table->string('pending_plan')->nullable()->after('plan_started_at');
+            });
+        }
+
+        if (!Schema::hasColumn('members', 'plan_status')) {
+            Schema::table('members', function ($table) {
+                $table->string('plan_status')->default('active')->after('pending_plan');
+            });
+        }
     }
 }

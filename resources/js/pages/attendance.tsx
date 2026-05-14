@@ -2,7 +2,6 @@ import { Head, Link } from '@inertiajs/react';
 import {
     CalendarCheck,
     CalendarDays,
-    CheckCircle2,
     Clock3,
     Dumbbell,
     XCircle,
