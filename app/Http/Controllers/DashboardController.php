@@ -198,6 +198,9 @@ class DashboardController extends Controller
                 'created_at' => optional($payment->created_at)->format('M j, Y g:i A'),
             ];
         });
+        $pendingPaymentConfirmations = $payments
+            ->filter(fn ($payment) => strtolower($payment['status']) === 'pending confirmation')
+            ->values();
         
         // Generate attendance records from each member's join date
         $attendance = $this->generateAttendanceRecords($members);
@@ -223,6 +226,7 @@ class DashboardController extends Controller
             'plans' => $plans,
             'payments' => $payments,
             'recentPayments' => $payments->take(5)->values(),
+            'pendingPaymentConfirmations' => $pendingPaymentConfirmations,
             'attendance' => $attendance,
             'pendingApprovals' => $pendingApprovals,
             'userRole' => 'admin',

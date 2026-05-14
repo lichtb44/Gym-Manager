@@ -74,7 +74,7 @@ class PaymentController extends Controller
                         'unit_amount' => (int) round(((float) $plan->price) * 100),
                         'product_data' => [
                             'name' => "{$member->plan} Membership",
-                            'description' => "GymFit Manager membership payment for {$member->name}",
+                            'description' => "FitCore Manager membership payment for {$member->name}",
                         ],
                     ],
                 ]],
@@ -117,7 +117,9 @@ class PaymentController extends Controller
 
         if ($response->json('payment_status') === 'paid') {
             $payment->update([
-                'status' => 'Paid',
+                'status' => $payment->status === 'Paid'
+                    ? 'Paid'
+                    : 'Pending Confirmation',
                 'method' => 'Stripe',
                 'stripe_checkout_session_id' => $response->json('id'),
                 'stripe_payment_intent_id' => $response->json('payment_intent'),
@@ -126,6 +128,18 @@ class PaymentController extends Controller
         }
 
         return redirect()->route('payments');
+    }
+
+    public function confirm(string $id)
+    {
+        $payment = Payment::findOrFail($id);
+
+        $payment->update([
+            'status' => 'Paid',
+            'payment_date' => $payment->payment_date ?? now()->toDateString(),
+        ]);
+
+        return redirect()->route('dashboard')->with('success', 'Payment confirmed.');
     }
 
     public function store(Request $request)

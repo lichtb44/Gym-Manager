@@ -37,6 +37,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::match(['delete', 'post'], 'dashboard/plans/{id}', [PlanController::class, 'destroy']);
 
         Route::post('dashboard/payments', [PaymentController::class, 'store']);
+        Route::post('dashboard/payments/{id}/confirm', [PaymentController::class, 'confirm']);
         Route::put('dashboard/payments/{id}', [PaymentController::class, 'update']);
         Route::match(['delete', 'post'], 'dashboard/payments/{id}', [PaymentController::class, 'destroy']);
 

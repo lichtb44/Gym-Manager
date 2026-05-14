@@ -11,10 +11,10 @@ export default function AppLogo() {
                 <AppLogoIcon className="size-5 fill-current" />
             </div>
             <div className="ml-3 grid flex-1 text-left text-sm">
-                <span className="mb-0.5 truncate leading-tight font-semibold text-white">
+                <span className="mb-0.5 truncate leading-tight font-semibold text-slate-950">
                     FitCore Gym
                 </span>
-                <span className="text-xs text-slate-200/80">{label}</span>
+                <span className="text-xs text-slate-500">{label}</span>
             </div>
         </>
     );

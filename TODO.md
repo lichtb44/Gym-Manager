@@ -1,4 +1,4 @@
-# TODO - GymFit Manager
+# TODO - FitCore Manager
 
 ## Admin Approve Plan + Confirm Payment
 - [ ] Inspect current admin approve flow and routes (already inspected).

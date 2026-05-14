@@ -42,6 +42,12 @@ export function AppSidebarHeader({
         }>;
         attendance?: Array<{ date?: string; status?: string }>;
         pendingApprovals?: Array<unknown>;
+        pendingPaymentConfirmations?: Array<{
+            member?: string;
+            amount?: string | number;
+            method?: string;
+            status?: string;
+        }>;
         recentPayments?: Array<{
             member?: string;
             amount?: string | number;
@@ -56,6 +62,8 @@ export function AppSidebarHeader({
     const hasPendingPlan =
         pageProps.member?.plan_status === 'pending' && pendingPlan;
     const latestAdminPayment = pageProps.recentPayments?.[0];
+    const pendingPaymentConfirmation =
+        pageProps.pendingPaymentConfirmations?.[0];
     const notifications =
         auth.user?.role === 'admin'
             ? [
@@ -66,11 +74,15 @@ export function AppSidebarHeader({
                       icon: Layers,
                   },
                   {
-                      title: latestAdminPayment
-                          ? 'Payment sent'
-                          : 'Payment records',
-                      detail: latestAdminPayment
-                          ? `${latestAdminPayment.member ?? 'Member'} sent ${latestAdminPayment.amount ?? ''} through ${latestAdminPayment.method ?? 'payment'}.`
+                      title: pendingPaymentConfirmation
+                          ? 'Payment needs confirmation'
+                          : latestAdminPayment
+                            ? 'Payment sent'
+                            : 'Payment records',
+                      detail: pendingPaymentConfirmation
+                          ? `${pendingPaymentConfirmation.member ?? 'Member'} has paid ${pendingPaymentConfirmation.amount ?? ''} through ${pendingPaymentConfirmation.method ?? 'payment'}. Confirm it in payments.`
+                          : latestAdminPayment
+                            ? `${latestAdminPayment.member ?? 'Member'} sent ${latestAdminPayment.amount ?? ''} through ${latestAdminPayment.method ?? 'payment'}.`
                           : 'Review member payments and billing status.',
                       href: '/dashboard#payments',
                       icon: CreditCard,
@@ -143,7 +155,9 @@ export function AppSidebarHeader({
                             <Bell className="h-5 w-5" />
                             {(auth.user?.role === 'admin'
                                 ? (pageProps.pendingApprovals?.length ?? 0) >
-                                      0 || Boolean(latestAdminPayment)
+                                      0 ||
+                                  (pageProps.pendingPaymentConfirmations
+                                      ?.length ?? 0) > 0
                                 : hasPendingPlan) && (
                                 <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
                             )}

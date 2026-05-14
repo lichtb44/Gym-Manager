@@ -118,7 +118,7 @@ export function AppSidebar() {
             className="bg-transparent text-white [&_[data-sidebar=sidebar]]:bg-transparent [&_[data-sidebar=sidebar]]:shadow-none"
         >
             <SidebarHeader>
-                <div className="flex items-center gap-3 rounded-3xl bg-white/5 px-4 py-4 shadow-[0_20px_80px_-40px_rgba(15,23,42,0.8)] ring-1 ring-white/10 backdrop-blur-sm">
+                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
                     <AppLogo />
                 </div>
             </SidebarHeader>
@@ -184,9 +184,11 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter className="px-4 pt-4 pb-6">
-                <div className="rounded-2xl bg-white/5 px-4 py-4 text-sm text-slate-300">
-                    <div className="font-semibold text-white">FitCore Gym</div>
-                    <div className="mt-1 text-xs text-slate-400">
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm shadow-sm">
+                    <div className="font-semibold text-slate-950">
+                        FitCore Gym
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
                         Membership Management
                     </div>
                 </div>

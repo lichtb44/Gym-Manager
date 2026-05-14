@@ -1,11 +1,11 @@
-# 🎯 GymFit Manager - Interactive Components Guide
+# 🎯 FitCore Manager - Interactive Components Guide
 
 ## All Clickable Elements - Complete Reference
 
 ### 🔔 TOP NAVIGATION BAR
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ GymFit Manager      Dashboard Title                 🔔 ⚙️👤  │
+│ FitCore Manager     Dashboard Title                 🔔 ⚙️👤  │
 │                     Dashboard Subtitle                          │
 └─────────────────────────────────────────────────────────────────┘
 ```

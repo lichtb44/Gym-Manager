@@ -152,6 +152,10 @@ const statusClass = (status: string) => {
         return 'bg-rose-50 text-rose-700 ring-rose-100';
     }
 
+    if (normalized === 'pending confirmation') {
+        return 'bg-amber-50 text-amber-700 ring-amber-100';
+    }
+
     return 'bg-sky-50 text-sky-700 ring-sky-100';
 };
 
@@ -463,6 +467,14 @@ export default function Dashboard({
                 preserveScroll: true,
                 onFinish: () => setDeleteTarget(null),
             },
+        );
+    };
+
+    const confirmPayment = (id: number | string) => {
+        router.post(
+            `/dashboard/payments/${id}/confirm`,
+            {},
+            { preserveScroll: true },
         );
     };
 
@@ -1024,6 +1036,15 @@ export default function Dashboard({
                                         </td>
                                         <td className="px-4 py-4">
                                             <RowActions
+                                                onConfirm={
+                                                    row.status.toLowerCase() ===
+                                                    'pending confirmation'
+                                                        ? () =>
+                                                              confirmPayment(
+                                                                  row.id,
+                                                              )
+                                                        : undefined
+                                                }
                                                 onView={() => undefined}
                                                 onEdit={() =>
                                                     openForm('payment', row.id)
@@ -1721,7 +1742,7 @@ function TopBar({
             <div>
                 <p className="flex items-center gap-2 text-sm font-medium text-blue-600">
                     <Dumbbell className="size-4" />
-                    GymFit Manager
+                    FitCore Manager
                 </p>
                 <h1 className="mt-1 text-2xl font-semibold text-slate-950">
                     {title}
@@ -1877,16 +1898,27 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function RowActions({
+    onConfirm,
     onView,
     onEdit,
     onDelete,
 }: {
+    onConfirm?: () => void;
     onView?: () => void;
     onEdit?: () => void;
     onDelete?: () => void;
 }) {
     return (
         <div className="flex justify-end gap-1 text-slate-500">
+            {onConfirm && (
+                <IconButton
+                    label="Confirm Payment"
+                    onClick={onConfirm}
+                    className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                    <CheckCircle2 className="size-4" />
+                </IconButton>
+            )}
             {onView && (
                 <IconButton label="View" onClick={onView}>
                     <Eye className="size-4" />

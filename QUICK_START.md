@@ -1,4 +1,4 @@
-# 🚀 Quick Start Guide - GymFit Manager
+# 🚀 Quick Start Guide - FitCore Manager
 
 ## Installation & Setup
 

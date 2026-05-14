@@ -121,7 +121,7 @@ export default function Payments({
                     <div>
                         <p className="flex items-center gap-2 text-sm font-medium text-violet-600">
                             <Dumbbell className="size-4" />
-                            GymFit Manager
+                            FitCore Manager
                         </p>
                         <h1 className="mt-1 text-2xl font-semibold text-slate-950">
                             Payments
