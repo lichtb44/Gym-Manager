@@ -55,10 +55,6 @@ export function AppSidebarHeader({
     const pendingPlan = pageProps.member?.pending_plan;
     const hasPendingPlan =
         pageProps.member?.plan_status === 'pending' && pendingPlan;
-    const pendingPaymentCount =
-        pageProps.recentPayments?.filter(
-            (payment) => payment.status?.toLowerCase() === 'pending',
-        ).length ?? 0;
     const latestAdminPayment = pageProps.recentPayments?.[0];
     const notifications =
         auth.user?.role === 'admin'
@@ -70,11 +66,11 @@ export function AppSidebarHeader({
                       icon: Layers,
                   },
                   {
-                      title: pendingPaymentCount
+                      title: latestAdminPayment
                           ? 'Payment sent'
                           : 'Payment records',
                       detail: latestAdminPayment
-                          ? `${latestAdminPayment.member ?? 'Member'} sent ${latestAdminPayment.amount ?? ''} via ${latestAdminPayment.method ?? 'payment'}.`
+                          ? `${latestAdminPayment.member ?? 'Member'} sent ${latestAdminPayment.amount ?? ''} through ${latestAdminPayment.method ?? 'payment'}.`
                           : 'Review member payments and billing status.',
                       href: '/dashboard#payments',
                       icon: CreditCard,
@@ -147,7 +143,7 @@ export function AppSidebarHeader({
                             <Bell className="h-5 w-5" />
                             {(auth.user?.role === 'admin'
                                 ? (pageProps.pendingApprovals?.length ?? 0) >
-                                      0 || pendingPaymentCount > 0
+                                      0 || Boolean(latestAdminPayment)
                                 : hasPendingPlan) && (
                                 <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
                             )}

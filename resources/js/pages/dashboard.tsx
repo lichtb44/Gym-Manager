@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, ComponentType, FormEvent } from 'react';
-import { LogoutConfirmationDialog } from '@/components/logout-confirmation-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -271,7 +270,11 @@ export default function Dashboard({
     } | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
-    const handleLogoutConfirm = () => setProfileMenuOpen(false);
+    const handleLogout = () => {
+        if (confirm('Are you sure you want to logout?')) {
+            router.post('/logout');
+        }
+    };
 
     const metrics = useMemo(() => {
         const activeMembers = memberRows.filter(
@@ -705,7 +708,7 @@ export default function Dashboard({
                         onProfileMenuToggle={() =>
                             setProfileMenuOpen(!profileMenuOpen)
                         }
-                        onLogout={handleLogoutConfirm}
+                        onLogout={handleLogout}
                     />
 
                     <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -1094,7 +1097,7 @@ export default function Dashboard({
                         onProfileMenuToggle={() =>
                             setProfileMenuOpen(!profileMenuOpen)
                         }
-                        onLogout={handleLogoutConfirm}
+                        onLogout={handleLogout}
                     />
 
                     <section className="mt-6 overflow-hidden rounded-lg border border-violet-100 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-6 py-8 shadow-sm lg:px-9">
@@ -1761,14 +1764,12 @@ function TopBar({
                             >
                                 <a href="/settings/profile">Edit Profile</a>
                             </Button>
-                            <LogoutConfirmationDialog onConfirm={onLogout}>
-                                <button
-                                    type="button"
-                                    className="flex w-full items-center gap-2 rounded-b-lg px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-rose-600"
-                                >
-                                    Logout
-                                </button>
-                            </LogoutConfirmationDialog>
+                            <button
+                                onClick={onLogout}
+                                className="flex w-full items-center gap-2 rounded-b-lg px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-rose-600"
+                            >
+                                Logout
+                            </button>
                         </div>
                     )}
                 </div>

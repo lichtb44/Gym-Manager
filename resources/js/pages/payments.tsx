@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import type { FormEvent } from 'react';
 
 interface Member {
@@ -104,13 +103,10 @@ export default function Payments({
 
     const submitPayment = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const form = new FormData(event.currentTarget);
 
         router.post(
             '/payments',
-            {
-                method: String(form.get('method') ?? 'Credit Card'),
-            },
+            {},
             {
                 preserveScroll: true,
             },
@@ -179,7 +175,7 @@ export default function Payments({
                 </section>
 
                 <section className="mt-6 grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-                    <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+                    <Card className="rounded-lg border-slate-200 bg-white shadow-sm xl:col-span-2">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-base">
                                 <CreditCard className="size-5 text-violet-600" />
@@ -256,34 +252,13 @@ export default function Payments({
                                 />
                             </div>
 
-                            <form
-                                className="mt-5 space-y-4"
-                                onSubmit={submitPayment}
-                            >
-                                <div>
-                                    <Label htmlFor="method">
-                                        Payment Method
-                                    </Label>
-                                    <select
-                                        id="method"
-                                        name="method"
-                                        className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-xs outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                                        defaultValue="Credit Card"
-                                    >
-                                        <option>Credit Card</option>
-                                        <option>Debit Card</option>
-                                        <option>Cash</option>
-                                        <option>GCash</option>
-                                        <option>Bank Transfer</option>
-                                    </select>
-                                </div>
-
+                            <form className="mt-5" onSubmit={submitPayment}>
                                 <Button
                                     type="submit"
                                     disabled={!canPay}
                                     className="w-full bg-violet-600 text-white hover:bg-violet-700"
                                 >
-                                    Pay Now
+                                    Pay with Stripe
                                 </Button>
                                 {!canPay && (
                                     <p className="text-sm text-slate-500">
@@ -301,7 +276,7 @@ export default function Payments({
                                 Payment History
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="overflow-x-auto px-0">
+                        <CardContent className="min-h-[360px] overflow-x-auto px-0">
                             <table className="w-full min-w-[760px] text-left text-sm text-slate-600">
                                 <thead>
                                     <tr className="border-y border-slate-100 bg-slate-50 text-xs font-semibold text-slate-500 uppercase">

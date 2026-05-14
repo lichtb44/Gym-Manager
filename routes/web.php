@@ -23,6 +23,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('attendance', [DashboardController::class, 'attendance'])->name('attendance');
     Route::get('payments', [DashboardController::class, 'payments'])->name('payments');
     Route::post('payments', [PaymentController::class, 'memberStore'])->name('payments.store');
+    Route::get('payments/stripe/success/{payment}', [PaymentController::class, 'stripeSuccess'])
+        ->name('payments.stripe-success');
     Route::post('dashboard/select-plan', [MemberController::class, 'selectPlan'])->name('dashboard.select-plan');
 
     Route::middleware('admin')->group(function () {

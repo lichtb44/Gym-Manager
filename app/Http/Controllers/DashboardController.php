@@ -34,8 +34,6 @@ class DashboardController extends Controller
             'email' => $user->email,
             'phone' => null,
             'plan' => 'No plan yet',
-            'pending_plan' => null,
-            'plan_status' => null,
             'plan_started_at' => null,
             'status' => 'Pending',
             'join_date' => optional($user->created_at)->format('M j, Y'),
@@ -78,8 +76,6 @@ class DashboardController extends Controller
             'email' => $user->email,
             'phone' => null,
             'plan' => 'No plan yet',
-            'pending_plan' => null,
-            'plan_status' => null,
             'plan_started_at' => null,
             'status' => 'Pending',
             'join_date' => optional($user->created_at)->format('M j, Y'),
@@ -104,8 +100,6 @@ class DashboardController extends Controller
             'email' => $user->email,
             'phone' => null,
             'plan' => 'No plan yet',
-            'pending_plan' => null,
-            'plan_status' => null,
             'plan_started_at' => null,
             'status' => 'Pending',
             'join_date' => optional($user->created_at)->format('M j, Y'),
@@ -244,8 +238,6 @@ class DashboardController extends Controller
             'email' => $user->email,
             'phone' => null,
             'plan' => 'No plan yet',
-            'pending_plan' => null,
-            'plan_status' => null,
             'plan_started_at' => null,
             'status' => 'Pending',
             'join_date' => optional($user->created_at)->format('M j, Y'),
@@ -266,7 +258,6 @@ class DashboardController extends Controller
                         'payment_date' => optional($payment->payment_date)->format('M j, Y'),
                         'method' => $payment->method,
                         'status' => $payment->status,
-                        'created_at' => optional($payment->created_at)->format('M j, Y g:i A'),
                     ];
                 })
                 ->toArray();
@@ -280,4 +271,3 @@ class DashboardController extends Controller
         ]);
     }
 }
-

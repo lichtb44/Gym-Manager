@@ -71,18 +71,22 @@ class MemberController extends Controller
                 $member->update($updates);
             } else {
                 // Member requests plan change (goes to pending)
-                if (!$supportsPlanApproval) {
-                    return redirect()->back()->withErrors('Plan changes require admin approval. Run php artisan migrate.');
-                }
-
                 $validated = $request->validate([
                     'plan' => ['required', 'string'],
                 ]);
 
-                $updates = [
+                $updates = $supportsPlanApproval ? [
                     'pending_plan' => $validated['plan'],
                     'plan_status' => 'pending',
+                ] : [
+                    'plan' => $validated['plan'],
+                    'status' => 'Active',
+                    'join_date' => now(),
                 ];
+
+                if (!$supportsPlanApproval && $supportsPlanStartTime) {
+                    $updates['plan_started_at'] = now();
+                }
 
                 $member->update($updates);
             }
@@ -134,21 +138,24 @@ class MemberController extends Controller
 
         $supportsPlanApproval = Schema::hasColumn('members', 'pending_plan')
             && Schema::hasColumn('members', 'plan_status');
+        $supportsPlanStartTime = Schema::hasColumn('members', 'plan_started_at');
 
-        if (!$supportsPlanApproval) {
-            return redirect()->back()->withErrors('Plan changes require admin approval. Run php artisan migrate.');
-        }
-
-        if ($member->plan === $validated['plan'] || $member->pending_plan === $validated['plan']) {
-            return redirect()->back();
-        }
-
-        $member->update([
+        $updates = $supportsPlanApproval ? [
             'pending_plan' => $validated['plan'],
             'plan_status' => 'pending',
-        ]);
+        ] : [
+            'plan' => $validated['plan'],
+            'status' => 'Active',
+            'join_date' => now(),
+        ];
 
-        return redirect()->back();
+        if (!$supportsPlanApproval && $supportsPlanStartTime) {
+            $updates['plan_started_at'] = now();
+        }
+
+        $member->update($updates);
+
+        return redirect()->route('dashboard');
     }
 
     public function approvePlanChange(Request $request, string $id)

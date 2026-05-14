@@ -13,6 +13,8 @@ class Payment extends Model
         'amount',
         'method',
         'status',
+        'stripe_checkout_session_id',
+        'stripe_payment_intent_id',
         'payment_date',
     ];
 
