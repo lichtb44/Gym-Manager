@@ -6,6 +6,7 @@ use App\Models\Member;
 use App\Models\Plan;
 use App\Models\Payment;
 use App\Models\Attendance;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -93,6 +94,15 @@ class DashboardController extends Controller
     public function payments()
     {
         $user = auth()->user();
+
+        if ($user->isAdmin()) {
+            return inertia('admin-payments', [
+                'members' => Member::orderBy('name')->get(['id', 'name', 'plan']),
+                'plans' => Plan::orderBy('name')->get(),
+                'payments' => $this->paymentRows(Payment::with('member')->latest()->get()),
+            ]);
+        }
+
         $member = Member::where('user_id', $user->id)->first();
         $memberProfile = $member ?: [
             'id' => $user->id,
@@ -129,6 +139,48 @@ class DashboardController extends Controller
             'member' => $memberProfile,
             'currentPlan' => $member ? Plan::where('name', $member->plan)->first() : null,
             'payments' => $payments,
+        ]);
+    }
+
+    public function plans()
+    {
+        return inertia('admin-plans', [
+            'plans' => Plan::orderBy('price')->get(),
+        ]);
+    }
+
+    public function members()
+    {
+        $users = User::with('member')
+            ->where(function ($query) {
+                $query
+                    ->where('role', '!=', 'admin')
+                    ->orWhereNull('role');
+            })
+            ->where('email', '!=', User::ADMIN_EMAIL)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($user) {
+                $member = $user->member;
+
+                return [
+                    'id' => $user->id,
+                    'member_id' => $member?->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'phone' => $member?->phone,
+                    'plan' => $member?->plan ?? 'No plan yet',
+                    'pending_plan' => $member?->pending_plan,
+                    'plan_status' => $member?->plan_status,
+                    'status' => $member?->status ?? 'Pending',
+                    'joined_at' => optional($member?->join_date ?? $user->created_at)->format('M j, Y'),
+                    'created_at' => optional($user->created_at)->format('M j, Y g:i A'),
+                ];
+            });
+
+        return inertia('admin-members', [
+            'users' => $users,
         ]);
     }
 
@@ -185,19 +237,7 @@ class DashboardController extends Controller
     {
         $members = Member::all();
         $plans = Plan::all();
-        $payments = Payment::with('member')->latest()->get()->map(function ($payment) {
-            return [
-                'id' => $payment->id,
-                'member' => $payment->member->name ?? 'Member',
-                'member_id' => $payment->member_id,
-                'plan' => $payment->plan,
-                'amount' => $payment->amount,
-                'payment_date' => optional($payment->payment_date)->format('M j, Y'),
-                'method' => $payment->method,
-                'status' => $payment->status,
-                'created_at' => optional($payment->created_at)->format('M j, Y g:i A'),
-            ];
-        });
+        $payments = $this->paymentRows(Payment::with('member')->latest()->get());
         $pendingPaymentConfirmations = $payments
             ->filter(fn ($payment) => strtolower($payment['status']) === 'pending confirmation')
             ->values();
@@ -231,6 +271,23 @@ class DashboardController extends Controller
             'pendingApprovals' => $pendingApprovals,
             'userRole' => 'admin',
         ]);
+    }
+
+    private function paymentRows($payments)
+    {
+        return $payments->map(function ($payment) {
+            return [
+                'id' => $payment->id,
+                'member' => $payment->member->name ?? 'Member',
+                'member_id' => $payment->member_id,
+                'plan' => $payment->plan,
+                'amount' => $payment->amount,
+                'payment_date' => optional($payment->payment_date)->format('M j, Y'),
+                'method' => $payment->method,
+                'status' => $payment->status,
+                'created_at' => optional($payment->created_at)->format('M j, Y g:i A'),
+            ];
+        });
     }
 
     private function memberDashboard($user)

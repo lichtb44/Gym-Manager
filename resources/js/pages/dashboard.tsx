@@ -9,12 +9,9 @@ import {
     CreditCard,
     DollarSign,
     Dumbbell,
-    Edit3,
-    Eye,
     Plus,
     Settings,
     ShieldCheck,
-    Trash2,
     UserRound,
     WalletCards,
     Users,
@@ -370,60 +367,6 @@ export default function Dashboard({
         plannedVisits > 0 ? (completedVisits / plannedVisits) * 100 : 0,
     );
 
-    const openForm = (form: FormType, editId?: number | string) => {
-        setActiveForm(form);
-        setEditingId(editId ?? null);
-
-        if (!editId) {
-            setFormData(defaultFormData[form]);
-
-            return;
-        }
-
-        if (form === 'member') {
-            const row = memberRows.find((item) => item.id === editId);
-
-            if (row) {
-                setFormData({
-                    name: row.name,
-                    email: row.email,
-                    phone: row.phone ?? '',
-                    plan: row.plan,
-                    status: row.status,
-                });
-            }
-        }
-
-        if (form === 'plan') {
-            const row = planRows.find((item) => item.id === editId);
-
-            if (row) {
-                setFormData({
-                    planName: row.name,
-                    duration: row.duration,
-                    price: String(row.price),
-                    description: row.description ?? '',
-                    status: row.status,
-                });
-            }
-        }
-
-        if (form === 'payment') {
-            const row = paymentRows.find((item) => item.id === editId);
-
-            if (row) {
-                setFormData({
-                    member: String(row.member_id),
-                    plan: row.plan,
-                    amount: String(row.amount),
-                    date: row.date ?? row.payment_date ?? '',
-                    method: row.method,
-                    status: row.status,
-                });
-            }
-        }
-    };
-
     const handleInputChange =
         (field: string) => (event: ChangeEvent<HTMLInputElement>) => {
             setFormData((current) => ({
@@ -467,14 +410,6 @@ export default function Dashboard({
                 preserveScroll: true,
                 onFinish: () => setDeleteTarget(null),
             },
-        );
-    };
-
-    const confirmPayment = (id: number | string) => {
-        router.post(
-            `/dashboard/payments/${id}/confirm`,
-            {},
-            { preserveScroll: true },
         );
     };
 
@@ -749,8 +684,8 @@ export default function Dashboard({
                         ))}
                     </section>
 
-                    <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.65fr)]">
-                        <div className="space-y-6">
+                    <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+                        <div>
                             {pendingApprovals?.length ? (
                                 <DataTable
                                     id="pending-plan-approvals"
@@ -831,236 +766,9 @@ export default function Dashboard({
                                     </CardContent>
                                 </Card>
                             )}
-
-                            <DataTable
-                                id="members"
-                                icon={Users}
-                                title="Members"
-                                actionLabel="Add Member"
-                                onAction={() => openForm('member')}
-                                headers={[
-                                    'Member',
-                                    'ID',
-                                    'Phone',
-                                    'Join Date',
-                                    'Plan',
-                                    'Status',
-                                    'Actions',
-                                ]}
-                            >
-                                {memberRows.map((row) => (
-                                    <tr
-                                        key={row.id}
-                                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                                    >
-                                        <td className="min-w-64 px-4 py-4">
-                                            <ProfileCell
-                                                name={row.name}
-                                                detail={row.email}
-                                            />
-                                        </td>
-                                        <td className="px-4 py-4 font-medium text-slate-950">
-                                            #{row.id}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.phone ?? 'N/A'}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.join_date ?? 'N/A'}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.plan}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <StatusBadge status={row.status} />
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <RowActions
-                                                onView={() => undefined}
-                                                onEdit={() =>
-                                                    openForm('member', row.id)
-                                                }
-                                                onDelete={() =>
-                                                    setDeleteTarget({
-                                                        type: 'member',
-                                                        id: row.id,
-                                                    })
-                                                }
-                                            />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </DataTable>
-
-                            <DataTable
-                                id="attendance"
-                                icon={CalendarCheck}
-                                title="Attendance"
-                                actionLabel="Mark Attendance"
-                                onAction={() => openForm('attendance')}
-                                headers={[
-                                    'Member',
-                                    'Check In',
-                                    'Check Out',
-                                    'Date',
-                                    'Status',
-                                    'Actions',
-                                ]}
-                            >
-                                {attendanceRows.map((row) => (
-                                    <tr
-                                        key={row.id}
-                                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                                    >
-                                        <td className="px-4 py-4 font-medium text-slate-950">
-                                            {row.member}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.checkIn || '-'}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.checkOut || '-'}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.date}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <StatusBadge status={row.status} />
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <RowActions
-                                                onView={() => undefined}
-                                                onEdit={undefined}
-                                                onDelete={() =>
-                                                    setDeleteTarget({
-                                                        type: 'attendance',
-                                                        id: row.id,
-                                                    })
-                                                }
-                                            />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </DataTable>
                         </div>
 
-                        <div className="space-y-6">
-                            <DataTable
-                                id="plans"
-                                icon={ShieldCheck}
-                                title="Plans"
-                                actionLabel="Add Plan"
-                                onAction={() => openForm('plan')}
-                                headers={[
-                                    'Plan',
-                                    'Duration',
-                                    'Price',
-                                    'Status',
-                                    'Actions',
-                                ]}
-                            >
-                                {planRows.map((row) => (
-                                    <tr
-                                        key={row.id}
-                                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                                    >
-                                        <td className="min-w-56 px-4 py-4">
-                                            <p className="font-medium text-slate-950">
-                                                {row.name}
-                                            </p>
-                                            <p className="mt-1 text-sm text-slate-500">
-                                                {row.description}
-                                            </p>
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.duration}
-                                        </td>
-                                        <td className="px-4 py-4 font-medium text-slate-950">
-                                            {currency(row.price)}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <StatusBadge status={row.status} />
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <RowActions
-                                                onView={() => undefined}
-                                                onEdit={() =>
-                                                    openForm('plan', row.id)
-                                                }
-                                                onDelete={() =>
-                                                    setDeleteTarget({
-                                                        type: 'plan',
-                                                        id: row.id,
-                                                    })
-                                                }
-                                            />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </DataTable>
-
-                            <DataTable
-                                id="payments"
-                                icon={CreditCard}
-                                title="Payments"
-                                actionLabel="Add Payment"
-                                onAction={() => openForm('payment')}
-                                headers={[
-                                    'Member',
-                                    'Plan',
-                                    'Amount',
-                                    'Method',
-                                    'Status',
-                                    'Actions',
-                                ]}
-                            >
-                                {paymentRows.map((row) => (
-                                    <tr
-                                        key={row.id}
-                                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                                    >
-                                        <td className="px-4 py-4 font-medium text-slate-950">
-                                            {row.member ?? `#${row.member_id}`}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.plan}
-                                        </td>
-                                        <td className="px-4 py-4 font-medium text-slate-950">
-                                            {currency(row.amount)}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.method}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <StatusBadge status={row.status} />
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <RowActions
-                                                onConfirm={
-                                                    row.status.toLowerCase() ===
-                                                    'pending confirmation'
-                                                        ? () =>
-                                                              confirmPayment(
-                                                                  row.id,
-                                                              )
-                                                        : undefined
-                                                }
-                                                onView={() => undefined}
-                                                onEdit={() =>
-                                                    openForm('payment', row.id)
-                                                }
-                                                onDelete={() =>
-                                                    setDeleteTarget({
-                                                        type: 'payment',
-                                                        id: row.id,
-                                                    })
-                                                }
-                                            />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </DataTable>
-
+                        <div className="grid gap-6">
                             <Card
                                 id="reports"
                                 className="rounded-lg border-slate-200 bg-white shadow-sm"
@@ -1191,60 +899,7 @@ export default function Dashboard({
                         <RecentActivity payments={memberPayments} />
                     </section>
 
-                    <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-                        <DataTable
-                            id="payments"
-                            icon={CreditCard}
-                            title="Payment History"
-                            headers={[
-                                'ID',
-                                'Date',
-                                'Plan',
-                                'Amount',
-                                'Status',
-                                'Method',
-                            ]}
-                        >
-                            {memberPayments.length ? (
-                                memberPayments.map((row) => (
-                                    <tr
-                                        key={row.id}
-                                        className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                                    >
-                                        <td className="px-4 py-4 font-medium text-slate-950">
-                                            PAY{String(row.id).padStart(3, '0')}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.payment_date ??
-                                                row.date ??
-                                                'N/A'}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.plan}
-                                        </td>
-                                        <td className="px-4 py-4 font-medium text-slate-950">
-                                            {currency(row.amount)}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <StatusBadge status={row.status} />
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {row.method}
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td
-                                        colSpan={6}
-                                        className="px-4 py-8 text-center text-sm text-slate-500"
-                                    >
-                                        No payments yet.
-                                    </td>
-                                </tr>
-                            )}
-                        </DataTable>
-
+                    <section className="mt-6">
                         <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-base">
@@ -1273,7 +928,7 @@ export default function Dashboard({
                                 />
                                 <QuickAction
                                     icon={WalletCards}
-                                    title="Payment History"
+                                    title="Payments"
                                     detail="View your payments"
                                     href="/payments"
                                 />
@@ -1873,20 +1528,6 @@ function DataTable({
     );
 }
 
-function ProfileCell({ name, detail }: { name: string; detail: string }) {
-    return (
-        <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-slate-100 text-sm font-semibold text-slate-700">
-                {initials(name)}
-            </div>
-            <div>
-                <p className="font-medium text-slate-950">{name}</p>
-                <p className="text-sm text-slate-500">{detail}</p>
-            </div>
-        </div>
-    );
-}
-
 function StatusBadge({ status }: { status: string }) {
     return (
         <span
@@ -1894,75 +1535,6 @@ function StatusBadge({ status }: { status: string }) {
         >
             {status}
         </span>
-    );
-}
-
-function RowActions({
-    onConfirm,
-    onView,
-    onEdit,
-    onDelete,
-}: {
-    onConfirm?: () => void;
-    onView?: () => void;
-    onEdit?: () => void;
-    onDelete?: () => void;
-}) {
-    return (
-        <div className="flex justify-end gap-1 text-slate-500">
-            {onConfirm && (
-                <IconButton
-                    label="Confirm Payment"
-                    onClick={onConfirm}
-                    className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
-                >
-                    <CheckCircle2 className="size-4" />
-                </IconButton>
-            )}
-            {onView && (
-                <IconButton label="View" onClick={onView}>
-                    <Eye className="size-4" />
-                </IconButton>
-            )}
-            {onEdit && (
-                <IconButton label="Edit" onClick={onEdit}>
-                    <Edit3 className="size-4" />
-                </IconButton>
-            )}
-            {onDelete && (
-                <IconButton
-                    label="Delete"
-                    onClick={onDelete}
-                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                >
-                    <Trash2 className="size-4" />
-                </IconButton>
-            )}
-        </div>
-    );
-}
-
-function IconButton({
-    label,
-    className = '',
-    children,
-    onClick,
-}: {
-    label: string;
-    className?: string;
-    children: React.ReactNode;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            aria-label={label}
-            title={label}
-            className={`inline-flex size-8 items-center justify-center rounded-lg transition hover:bg-slate-100 hover:text-slate-950 ${className}`}
-            onClick={onClick}
-        >
-            {children}
-        </button>
     );
 }
 

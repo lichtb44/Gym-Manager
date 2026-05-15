@@ -1,5 +1,6 @@
 import type { InertiaLinkProps } from '@inertiajs/react';
 import { usePage } from '@inertiajs/react';
+import { useSyncExternalStore } from 'react';
 import { toUrl } from '@/lib/utils';
 
 export type IsCurrentUrlFn = (
@@ -28,12 +29,34 @@ export type UseCurrentUrlReturn = {
 
 export function useCurrentUrl(): UseCurrentUrlReturn {
     const page = usePage();
-    const currentUrlPath = new URL(
-        page.url,
-        typeof window !== 'undefined'
-            ? window.location.origin
-            : 'http://localhost',
-    ).pathname;
+    const getServerUrl = () => {
+        const parsedUrl = new URL(
+            page.url,
+            typeof window !== 'undefined'
+                ? window.location.origin
+                : 'http://localhost',
+        );
+
+        return `${parsedUrl.pathname}${parsedUrl.hash}`;
+    };
+
+    const currentUrlPath = useSyncExternalStore(
+        (onStoreChange) => {
+            if (typeof window === 'undefined') {
+                return () => {};
+            }
+
+            window.addEventListener('hashchange', onStoreChange);
+            window.addEventListener('popstate', onStoreChange);
+
+            return () => {
+                window.removeEventListener('hashchange', onStoreChange);
+                window.removeEventListener('popstate', onStoreChange);
+            };
+        },
+        () => `${window.location.pathname}${window.location.hash}`,
+        getServerUrl,
+    );
 
     const isCurrentUrl: IsCurrentUrlFn = (
         urlToCheck: NonNullable<InertiaLinkProps['href']>,
@@ -53,7 +76,7 @@ export function useCurrentUrl(): UseCurrentUrlReturn {
         try {
             const absoluteUrl = new URL(urlString);
 
-            return comparePath(absoluteUrl.pathname);
+            return comparePath(`${absoluteUrl.pathname}${absoluteUrl.hash}`);
         } catch {
             return false;
         }

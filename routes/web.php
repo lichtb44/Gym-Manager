@@ -28,6 +28,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('dashboard/select-plan', [MemberController::class, 'selectPlan'])->name('dashboard.select-plan');
 
     Route::middleware('admin')->group(function () {
+        Route::get('members', [DashboardController::class, 'members'])->name('members');
+        Route::get('plans', [DashboardController::class, 'plans'])->name('plans');
+
         Route::post('dashboard/members', [MemberController::class, 'store']);
         Route::match(['delete', 'post'], 'dashboard/members/{id}', [MemberController::class, 'destroy']);
         Route::post('dashboard/members/{id}/approve-plan', [MemberController::class, 'approvePlanChange']);

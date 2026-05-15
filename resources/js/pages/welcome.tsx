@@ -1,6 +1,7 @@
 ﻿import { Head, Link, usePage } from '@inertiajs/react';
 import AppLogoIcon from '@/components/app-logo-icon';
-import { dashboard, login, register, home } from '@/routes';
+import { dashboard, login, home } from '@/routes';
+import { register as memberRegister } from '@/routes/member';
 
 export default function Welcome({
     canRegister = true,
@@ -93,7 +94,7 @@ export default function Welcome({
                             ) : (
                                 <>
                                     <Link 
-                                        href={canRegister ? register() : login()} 
+                                        href={canRegister ? memberRegister() : login()} 
                                         className="flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-violet-500 to-violet-700 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-violet-500/20 hover:from-violet-600 hover:to-violet-800 transition"
                                     >
                                         Get Started Now

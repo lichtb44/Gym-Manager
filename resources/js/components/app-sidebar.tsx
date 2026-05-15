@@ -32,12 +32,12 @@ const adminNavItems: NavItem[] = [
     },
     {
         title: 'Members',
-        href: '/dashboard#members',
+        href: '/members',
         icon: Users,
     },
     {
         title: 'Plans',
-        href: '/dashboard#plans',
+        href: '/plans',
         icon: Layers,
     },
     {
@@ -47,7 +47,7 @@ const adminNavItems: NavItem[] = [
     },
     {
         title: 'Payments',
-        href: '/dashboard#payments',
+        href: '/payments',
         icon: CreditCard,
     },
     {
@@ -151,6 +151,21 @@ export function AppSidebar() {
                             }
 
                             if (item.title === 'Settings') {
+                                return (
+                                    <a
+                                        key={item.title}
+                                        href={toUrl(item.href)}
+                                        className={className}
+                                    >
+                                        {item.icon && (
+                                            <item.icon className="h-4 w-4" />
+                                        )}
+                                        <span>{item.title}</span>
+                                    </a>
+                                );
+                            }
+
+                            if (toUrl(item.href).includes('#')) {
                                 return (
                                     <a
                                         key={item.title}
