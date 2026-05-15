@@ -70,12 +70,15 @@ class MemberController extends Controller
 
                 $member->update($updates);
             } else {
-                // Member requests plan change (goes to pending)
                 $validated = $request->validate([
                     'plan' => ['required', 'string'],
                 ]);
 
-                $updates = $supportsPlanApproval ? [
+                $hasActivePlan = !empty($member->plan)
+                    && $member->plan !== 'No plan yet'
+                    && $member->status !== 'Pending';
+
+                $updates = $supportsPlanApproval && $hasActivePlan ? [
                     'pending_plan' => $validated['plan'],
                     'plan_status' => 'pending',
                 ] : [
@@ -84,7 +87,14 @@ class MemberController extends Controller
                     'join_date' => now(),
                 ];
 
-                if (!$supportsPlanApproval && $supportsPlanStartTime) {
+                if ($supportsPlanApproval && !$hasActivePlan) {
+                    $updates += [
+                        'pending_plan' => null,
+                        'plan_status' => 'active',
+                    ];
+                }
+
+                if ((!$supportsPlanApproval || !$hasActivePlan) && $supportsPlanStartTime) {
                     $updates['plan_started_at'] = now();
                 }
 
@@ -140,7 +150,11 @@ class MemberController extends Controller
             && Schema::hasColumn('members', 'plan_status');
         $supportsPlanStartTime = Schema::hasColumn('members', 'plan_started_at');
 
-        $updates = $supportsPlanApproval ? [
+        $hasActivePlan = !empty($member->plan)
+            && $member->plan !== 'No plan yet'
+            && $member->status !== 'Pending';
+
+        $updates = $supportsPlanApproval && $hasActivePlan ? [
             'pending_plan' => $validated['plan'],
             'plan_status' => 'pending',
         ] : [
@@ -149,7 +163,14 @@ class MemberController extends Controller
             'join_date' => now(),
         ];
 
-        if (!$supportsPlanApproval && $supportsPlanStartTime) {
+        if ($supportsPlanApproval && !$hasActivePlan) {
+            $updates += [
+                'pending_plan' => null,
+                'plan_status' => 'active',
+            ];
+        }
+
+        if ((!$supportsPlanApproval || !$hasActivePlan) && $supportsPlanStartTime) {
             $updates['plan_started_at'] = now();
         }
 

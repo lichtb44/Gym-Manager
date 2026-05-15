@@ -14,6 +14,9 @@ class PaymentController extends Controller
     public function memberStore(Request $request)
     {
         $user = $request->user();
+        $validated = $request->validate([
+            'method' => ['required', 'string', 'max:255'],
+        ]);
 
         if ($user->isAdmin()) {
             return redirect()->route('dashboard')->withErrors('Admins should add payments from the dashboard.');
@@ -39,20 +42,30 @@ class PaymentController extends Controller
             return redirect()->back()->withErrors('Your current plan could not be found.');
         }
 
-        $stripeSecret = config('services.stripe.secret');
-
-        if (!$stripeSecret) {
-            return redirect()->back()->withErrors('Stripe is not configured. Add STRIPE_SECRET_KEY to your .env file.');
-        }
-
         $payment = Payment::create([
             'member_id' => $member->id,
             'plan' => $member->plan,
             'amount' => $plan->price,
-            'method' => 'Stripe',
+            'method' => $validated['method'],
             'status' => 'Pending',
             'payment_date' => now()->toDateString(),
         ]);
+
+        if (strtolower($validated['method']) !== 'stripe') {
+            $payment->update([
+                'status' => 'Pending Confirmation',
+            ]);
+
+            return redirect()->route('payments')->with('success', 'Payment request sent for admin confirmation.');
+        }
+
+        $stripeSecret = config('services.stripe.secret');
+
+        if (!$stripeSecret) {
+            $payment->delete();
+
+            return redirect()->back()->withErrors('Stripe is not configured. Add STRIPE_SECRET_KEY to your .env file.');
+        }
 
         $response = Http::asForm()
             ->withToken($stripeSecret)

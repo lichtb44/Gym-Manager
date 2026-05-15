@@ -83,6 +83,10 @@ export default function MyPlan({
     const planStartedAt = member?.plan_started_at ?? member?.join_date;
     const pendingPlan = member?.pending_plan ?? null;
     const hasPendingPlan = member?.plan_status === 'pending' && pendingPlan;
+    const hasActivePlan =
+        Boolean(member?.plan) &&
+        member?.plan !== 'No plan yet' &&
+        member?.status !== 'Pending';
 
     const selectPlan = (planName: string) => {
         if (member?.plan === planName || pendingPlan === planName) {
@@ -225,8 +229,9 @@ export default function MyPlan({
                                     Available Plans
                                 </h2>
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Select a plan here instead of from the
-                                    dashboard.
+                                    {hasActivePlan
+                                        ? 'Request a plan change here instead of from the dashboard.'
+                                        : 'Choose your plan here instead of from the dashboard.'}
                                 </p>
                             </div>
                             <span className="text-sm text-slate-500">
@@ -238,6 +243,9 @@ export default function MyPlan({
                             {plans.map((plan) => {
                                 const isCurrent = member?.plan === plan.name;
                                 const isPending = pendingPlan === plan.name;
+                                const actionLabel = hasActivePlan
+                                    ? 'Request Change Plan'
+                                    : 'Choose Plan';
 
                                 return (
                                     <Card
@@ -305,7 +313,7 @@ export default function MyPlan({
                                                     ? 'Current Plan'
                                                     : isPending
                                                       ? 'Pending Approval'
-                                                      : 'Request Change'}
+                                                      : actionLabel}
                                             </Button>
                                         </CardContent>
                                     </Card>

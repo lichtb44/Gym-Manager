@@ -6,6 +6,7 @@ import {
     ReceiptText,
     WalletCards,
 } from 'lucide-react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,11 +75,14 @@ const statusClass = (status: string) => {
     return 'bg-amber-50 text-amber-700 ring-amber-100';
 };
 
+const paymentMethods = ['Stripe', 'Cash', 'GCash', 'Bank Transfer'];
+
 export default function Payments({
     member,
     currentPlan,
     payments = [],
 }: PaymentsProps) {
+    const [paymentMethod, setPaymentMethod] = useState(paymentMethods[0]);
     const paidPayments = payments.filter(
         (payment) => payment.status.toLowerCase() === 'paid',
     );
@@ -105,7 +109,7 @@ export default function Payments({
 
         router.post(
             '/payments',
-            {},
+            { method: paymentMethod },
             {
                 preserveScroll: true,
             },
@@ -252,12 +256,35 @@ export default function Payments({
                             </div>
 
                             <form className="mt-5" onSubmit={submitPayment}>
+                                <label
+                                    htmlFor="payment-method"
+                                    className="text-sm font-medium text-slate-700"
+                                >
+                                    Payment Method
+                                </label>
+                                <select
+                                    id="payment-method"
+                                    value={paymentMethod}
+                                    onChange={(event) =>
+                                        setPaymentMethod(event.target.value)
+                                    }
+                                    disabled={!canPay}
+                                    className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                >
+                                    {paymentMethods.map((method) => (
+                                        <option key={method} value={method}>
+                                            {method}
+                                        </option>
+                                    ))}
+                                </select>
                                 <Button
                                     type="submit"
                                     disabled={!canPay}
-                                    className="w-full bg-violet-600 text-white hover:bg-violet-700"
+                                    className="mt-4 w-full bg-violet-600 text-white hover:bg-violet-700"
                                 >
-                                    Pay with Stripe
+                                    {paymentMethod === 'Stripe'
+                                        ? 'Pay with Stripe'
+                                        : 'Send Payment Request'}
                                 </Button>
                                 {!canPay && (
                                     <p className="text-sm text-slate-500">
