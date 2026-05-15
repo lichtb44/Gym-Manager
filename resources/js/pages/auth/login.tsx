@@ -129,7 +129,7 @@ export default function Login({
                                     className="text-violet-700 no-underline hover:text-violet-800"
                                     tabIndex={5}
                                 >
-                                    Contact your admin
+                                    Register
                                 </TextLink>
                             </div>
                         )}
