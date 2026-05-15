@@ -793,25 +793,6 @@ export default function Dashboard({
                                     />
                                 </CardContent>
                             </Card>
-
-                            <Card
-                                id="settings"
-                                className="rounded-lg border-slate-200 bg-white shadow-sm"
-                            >
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-base">
-                                        <Settings className="size-5 text-blue-600" />
-                                        Settings
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <Button asChild variant="outline">
-                                        <a href="/settings/profile">
-                                            Open admin settings
-                                        </a>
-                                    </Button>
-                                </CardContent>
-                            </Card>
                         </div>
                     </section>
                 </main>
