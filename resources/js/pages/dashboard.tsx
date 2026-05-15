@@ -722,9 +722,8 @@ export default function Dashboard({
                                             </td>
                                             <td className="px-4 py-4">
                                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-                                                    <ApprovePlanDialog
+                                                    <ApprovePlanButton
                                                         memberId={row.id}
-                                                        defaultAmount={''}
                                                     />
 
                                                     <Button
@@ -1550,115 +1549,31 @@ function ProgressStat({ label, value }: { label: string; value: string }) {
     );
 }
 
-function ApprovePlanDialog({
-    memberId,
-    defaultAmount,
-}: {
-    memberId: number;
-    defaultAmount: string;
-}) {
-    const [open, setOpen] = useState(false);
-    const today = new Date().toISOString().slice(0, 10);
-    const [paymentMethod, setPaymentMethod] = useState('Credit Card');
-    const [paymentDate, setPaymentDate] = useState(today);
-    const [paymentAmount, setPaymentAmount] = useState(defaultAmount);
-
-    const submit = () => {
+function ApprovePlanButton({ memberId }: { memberId: number }) {
+    const approve = () => {
         router.post(
             `/dashboard/members/${memberId}/approve-plan`,
             {
                 action: 'approve',
-                payment_method: paymentMethod,
-                payment_date: paymentDate,
-                payment_amount: paymentAmount ? Number(paymentAmount) : null,
+                payment_method: 'Credit Card',
+                payment_date: new Date().toISOString().slice(0, 10),
+                payment_amount: null,
             },
             {
                 preserveScroll: true,
-                onSuccess: () => setOpen(false),
             },
         );
     };
 
     return (
-        <>
-            <Button
-                size="sm"
-                className="bg-emerald-600 text-white hover:bg-emerald-700"
-                type="button"
-                onClick={() => setOpen(true)}
-            >
-                Approve
-            </Button>
-
-            <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="max-w-md rounded-lg">
-                    <DialogHeader>
-                        <DialogTitle>Confirm plan + payment</DialogTitle>
-                        <DialogDescription>
-                            Approving will activate the selected plan and create
-                            a paid payment record.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="grid gap-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor={`payment_method_${memberId}`}>
-                                Payment method
-                            </Label>
-                            <Input
-                                id={`payment_method_${memberId}`}
-                                value={paymentMethod}
-                                onChange={(e) =>
-                                    setPaymentMethod(e.target.value)
-                                }
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor={`payment_date_${memberId}`}>
-                                Payment date
-                            </Label>
-                            <Input
-                                id={`payment_date_${memberId}`}
-                                type="date"
-                                value={paymentDate}
-                                onChange={(e) => setPaymentDate(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor={`payment_amount_${memberId}`}>
-                                Amount
-                            </Label>
-                            <Input
-                                id={`payment_amount_${memberId}`}
-                                type="number"
-                                value={paymentAmount}
-                                onChange={(e) =>
-                                    setPaymentAmount(e.target.value)
-                                }
-                                placeholder="Leave blank to use plan price"
-                            />
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <DialogClose asChild>
-                            <Button type="button" variant="outline">
-                                Cancel
-                            </Button>
-                        </DialogClose>
-                        <Button
-                            type="button"
-                            className="bg-emerald-600 text-white hover:bg-emerald-700"
-                            onClick={submit}
-                        >
-                            Confirm & Approve
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </>
+        <Button
+            size="sm"
+            className="bg-emerald-600 text-white hover:bg-emerald-700"
+            type="button"
+            onClick={approve}
+        >
+            Approve
+        </Button>
     );
 }
 

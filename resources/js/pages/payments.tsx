@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    ChevronDown,
     CreditCard,
     DollarSign,
     Dumbbell,
@@ -7,7 +8,7 @@ import {
     WalletCards,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -75,14 +76,19 @@ const statusClass = (status: string) => {
     return 'bg-amber-50 text-amber-700 ring-amber-100';
 };
 
-const paymentMethods = ['Stripe', 'Cash', 'GCash', 'Bank Transfer'];
+const stripeInputClass =
+    'w-full rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400';
 
 export default function Payments({
     member,
     currentPlan,
     payments = [],
 }: PaymentsProps) {
-    const [paymentMethod, setPaymentMethod] = useState(paymentMethods[0]);
+    const [cardNumber, setCardNumber] = useState('');
+    const [cardExpiry, setCardExpiry] = useState('');
+    const [cardCvc, setCardCvc] = useState('');
+    const [cardholderName, setCardholderName] = useState(member?.name ?? '');
+    const [zip, setZip] = useState('');
     const paidPayments = payments.filter(
         (payment) => payment.status.toLowerCase() === 'paid',
     );
@@ -109,7 +115,7 @@ export default function Payments({
 
         router.post(
             '/payments',
-            { method: paymentMethod },
+            { method: 'Stripe' },
             {
                 preserveScroll: true,
             },
@@ -231,66 +237,228 @@ export default function Payments({
                     </Card>
 
                     <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <WalletCards className="size-5 text-violet-600" />
-                                Send Payment
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="rounded-lg border border-slate-200 px-4 py-4">
-                                <InfoRow
-                                    label="Plan"
-                                    value={member?.plan ?? 'No active plan'}
-                                />
-                                <InfoRow
-                                    label="Amount"
-                                    value={
-                                        currentPlan
-                                            ? String(
-                                                  currency(currentPlan.price),
-                                              )
-                                            : 'N/A'
-                                    }
-                                />
-                            </div>
-
-                            <form className="mt-5" onSubmit={submitPayment}>
-                                <label
-                                    htmlFor="payment-method"
-                                    className="text-sm font-medium text-slate-700"
-                                >
-                                    Payment Method
-                                </label>
-                                <select
-                                    id="payment-method"
-                                    value={paymentMethod}
-                                    onChange={(event) =>
-                                        setPaymentMethod(event.target.value)
-                                    }
-                                    disabled={!canPay}
-                                    className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                >
-                                    {paymentMethods.map((method) => (
-                                        <option key={method} value={method}>
-                                            {method}
-                                        </option>
-                                    ))}
-                                </select>
-                                <Button
-                                    type="submit"
-                                    disabled={!canPay}
-                                    className="mt-4 w-full bg-violet-600 text-white hover:bg-violet-700"
-                                >
-                                    {paymentMethod === 'Stripe'
-                                        ? 'Pay with Stripe'
-                                        : 'Send Payment Request'}
-                                </Button>
-                                {!canPay && (
-                                    <p className="text-sm text-slate-500">
-                                        Activate a plan before sending payment.
+                        <CardContent className="pt-6">
+                            <form onSubmit={submitPayment}>
+                                <div className="mb-6">
+                                    <h2 className="text-lg font-semibold text-slate-900">
+                                        Pay with card
+                                    </h2>
+                                    <p className="mt-2 text-sm text-slate-500">
+                                        {member?.plan ?? 'Membership'}{' '}
+                                        {currentPlan
+                                            ? currency(currentPlan.price)
+                                            : ''}
                                     </p>
-                                )}
+                                </div>
+
+                                <div className="grid gap-5">
+                                    <StripeField label="Email" htmlFor="email">
+                                        <input
+                                            id="email"
+                                            type="email"
+                                            value={member?.email ?? ''}
+                                            disabled
+                                            className={`${stripeInputClass} disabled:bg-white disabled:text-slate-500`}
+                                            placeholder="email@example.com"
+                                        />
+                                    </StripeField>
+
+                                    <div>
+                                        <p className="mb-3 text-sm font-semibold text-slate-800">
+                                            Payment method
+                                        </p>
+                                        <div className="rounded-md border border-slate-200 bg-white shadow-sm">
+                                            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm font-medium text-slate-800">
+                                                <CreditCard className="size-4 text-slate-900" />
+                                                Card
+                                            </div>
+
+                                            <div className="space-y-4 p-4">
+                                                <div>
+                                                    <label
+                                                        htmlFor="card-number"
+                                                        className="mb-1.5 block text-xs font-medium text-slate-600"
+                                                    >
+                                                        Card information
+                                                    </label>
+                                                    <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-100">
+                                                        <div className="relative">
+                                                            <input
+                                                                id="card-number"
+                                                                value={
+                                                                    cardNumber
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    setCardNumber(
+                                                                        event
+                                                                            .target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    !canPay
+                                                                }
+                                                                inputMode="numeric"
+                                                                className="w-full border-0 px-3 py-2.5 pr-28 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:bg-slate-50"
+                                                                placeholder="1234 1234 1234 1234"
+                                                            />
+                                                            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center gap-1">
+                                                                {[
+                                                                    'VISA',
+                                                                    'MC',
+                                                                    'AMEX',
+                                                                    'JCB',
+                                                                ].map(
+                                                                    (brand) => (
+                                                                        <span
+                                                                            key={
+                                                                                brand
+                                                                            }
+                                                                            className="rounded-sm border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-bold text-slate-600"
+                                                                        >
+                                                                            {
+                                                                                brand
+                                                                            }
+                                                                        </span>
+                                                                    ),
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 border-t border-slate-200">
+                                                            <input
+                                                                aria-label="Expiration date"
+                                                                value={
+                                                                    cardExpiry
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    setCardExpiry(
+                                                                        event
+                                                                            .target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    !canPay
+                                                                }
+                                                                className="border-0 border-r border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:bg-slate-50"
+                                                                placeholder="MM / YY"
+                                                            />
+                                                            <input
+                                                                aria-label="CVC"
+                                                                value={cardCvc}
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    setCardCvc(
+                                                                        event
+                                                                            .target
+                                                                            .value,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    !canPay
+                                                                }
+                                                                inputMode="numeric"
+                                                                className="border-0 px-3 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:bg-slate-50"
+                                                                placeholder="CVC"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <StripeField
+                                                    label="Cardholder name"
+                                                    htmlFor="cardholder-name"
+                                                >
+                                                    <input
+                                                        id="cardholder-name"
+                                                        value={cardholderName}
+                                                        onChange={(event) =>
+                                                            setCardholderName(
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        disabled={!canPay}
+                                                        className={stripeInputClass}
+                                                        placeholder="Full name on card"
+                                                    />
+                                                </StripeField>
+
+                                                <div>
+                                                    <label
+                                                        htmlFor="country"
+                                                        className="mb-1.5 block text-xs font-medium text-slate-600"
+                                                    >
+                                                        Country or region
+                                                    </label>
+                                                    <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+                                                        <div className="relative">
+                                                            <select
+                                                                id="country"
+                                                                disabled={
+                                                                    !canPay
+                                                                }
+                                                                className="w-full appearance-none border-0 bg-white px-3 py-2.5 pr-10 text-sm text-slate-900 outline-none disabled:bg-slate-50"
+                                                                defaultValue="United States"
+                                                            >
+                                                                <option>
+                                                                    United
+                                                                    States
+                                                                </option>
+                                                            </select>
+                                                            <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-slate-500" />
+                                                        </div>
+                                                        <input
+                                                            aria-label="ZIP"
+                                                            value={zip}
+                                                            onChange={(event) =>
+                                                                setZip(
+                                                                    event
+                                                                        .target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            disabled={!canPay}
+                                                            className="w-full border-0 border-t border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 disabled:bg-slate-50"
+                                                            placeholder="ZIP"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <Button
+                                        type="submit"
+                                        disabled={!canPay}
+                                        className="h-12 w-full bg-[#0a7bdc] text-sm font-semibold text-white hover:bg-[#066dcc] disabled:bg-blue-300"
+                                    >
+                                        Pay
+                                    </Button>
+
+                                    {!canPay && (
+                                        <p className="text-center text-sm text-slate-500">
+                                            Activate a plan before sending
+                                            payment.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="mt-5 flex items-center justify-center gap-4 text-xs text-slate-500">
+                                    <span>Powered by stripe</span>
+                                    <span className="h-4 w-px bg-slate-200" />
+                                    <a href="#" className="hover:text-slate-700">
+                                        Terms
+                                    </a>
+                                    <a href="#" className="hover:text-slate-700">
+                                        Privacy
+                                    </a>
+                                </div>
                             </form>
                         </CardContent>
                     </Card>
@@ -405,6 +573,28 @@ function InfoRow({ label, value }: { label: string; value: string }) {
             <span className="text-right font-medium text-slate-950">
                 {value}
             </span>
+        </div>
+    );
+}
+
+function StripeField({
+    label,
+    htmlFor,
+    children,
+}: {
+    label: string;
+    htmlFor: string;
+    children: ReactNode;
+}) {
+    return (
+        <div>
+            <label
+                htmlFor={htmlFor}
+                className="mb-1.5 block text-xs font-medium text-slate-600"
+            >
+                {label}
+            </label>
+            {children}
         </div>
     );
 }
