@@ -7,6 +7,7 @@ use App\Models\Member;
 use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class PaymentController extends Controller
@@ -130,9 +131,7 @@ class PaymentController extends Controller
 
         if ($response->json('payment_status') === 'paid') {
             $payment->update([
-                'status' => $payment->status === 'Paid'
-                    ? 'Paid'
-                    : 'Pending Confirmation',
+                'status' => 'Paid',
                 'method' => 'Stripe',
                 'stripe_checkout_session_id' => $response->json('id'),
                 'stripe_payment_intent_id' => $response->json('payment_intent'),
@@ -141,6 +140,85 @@ class PaymentController extends Controller
         }
 
         return redirect()->route('payments');
+    }
+
+    public function stripeWebhook(Request $request)
+    {
+        $payload = $request->getContent();
+        $signature = $request->header('Stripe-Signature');
+        $webhookSecret = config('services.stripe.webhook_secret');
+
+        if (!$signature || !$webhookSecret || !$this->hasValidStripeSignature($payload, $signature, $webhookSecret)) {
+            Log::warning('Rejected Stripe webhook with invalid signature.');
+
+            return response('Invalid signature', 400);
+        }
+
+        $event = json_decode($payload, true);
+
+        if (!is_array($event)) {
+            return response('Invalid payload', 400);
+        }
+
+        if (($event['type'] ?? null) !== 'checkout.session.completed') {
+            return response('Event ignored');
+        }
+
+        $session = $event['data']['object'] ?? [];
+        $paymentId = $session['metadata']['payment_id'] ?? $session['client_reference_id'] ?? null;
+
+        if (!$paymentId) {
+            Log::warning('Stripe checkout session completed without a payment_id.', [
+                'session_id' => $session['id'] ?? null,
+            ]);
+
+            return response('Missing payment id', 400);
+        }
+
+        $payment = Payment::find($paymentId);
+
+        if (!$payment) {
+            Log::warning('Stripe webhook referenced an unknown payment.', [
+                'payment_id' => $paymentId,
+                'session_id' => $session['id'] ?? null,
+            ]);
+
+            return response('Payment not found', 404);
+        }
+
+        if (($session['payment_status'] ?? null) === 'paid') {
+            $payment->update([
+                'status' => 'Paid',
+                'method' => 'Stripe',
+                'stripe_checkout_session_id' => $session['id'] ?? $payment->stripe_checkout_session_id,
+                'stripe_payment_intent_id' => $session['payment_intent'] ?? $payment->stripe_payment_intent_id,
+                'payment_date' => now()->toDateString(),
+            ]);
+        }
+
+        return response('Webhook received');
+    }
+
+    private function hasValidStripeSignature(string $payload, string $signatureHeader, string $secret): bool
+    {
+        $parts = collect(explode(',', $signatureHeader))
+            ->mapWithKeys(function (string $part) {
+                [$key, $value] = array_pad(explode('=', $part, 2), 2, null);
+
+                return $key && $value ? [$key => $value] : [];
+            });
+
+        $timestamp = $parts->get('t');
+        $signature = $parts->get('v1');
+
+        if (!$timestamp || !$signature || abs(time() - (int) $timestamp) > 300) {
+            return false;
+        }
+
+        $signedPayload = "{$timestamp}.{$payload}";
+        $expectedSignature = hash_hmac('sha256', $signedPayload, $secret);
+
+        return hash_equals($expectedSignature, $signature);
     }
 
     public function confirm(string $id)

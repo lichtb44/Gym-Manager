@@ -183,7 +183,7 @@ const submitPath = (form: FormType, editId: number | string | null) =>
 const deletePath = (form: FormType, id: number | string) =>
     `/dashboard/${form}s/${id}`;
 
-const parseDate = (value?: string) => {
+const parseDate = (value?: string | null) => {
     if (!value) {
         return null;
     }
@@ -200,13 +200,25 @@ const parseDate = (value?: string) => {
 const startOfDay = (date: Date) =>
     new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-const shortDate = (value?: string) => {
+const shortDate = (value?: string | null) => {
     const parsed = parseDate(value);
 
     return parsed
         ? new Intl.DateTimeFormat(undefined, {
               month: 'short',
               day: 'numeric',
+          }).format(parsed)
+        : (value ?? 'N/A');
+};
+
+const readableDate = (value?: string | null) => {
+    const parsed = parseDate(value);
+
+    return parsed
+        ? new Intl.DateTimeFormat(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
           }).format(parsed)
         : (value ?? 'N/A');
 };
@@ -366,7 +378,10 @@ export default function Dashboard({
 
         paymentRows.forEach((payment) => {
             const key = payment.payment_date ?? payment.date ?? 'Unscheduled';
-            revenue.set(key, (revenue.get(key) ?? 0) + (Number(payment.amount) || 0));
+            revenue.set(
+                key,
+                (revenue.get(key) ?? 0) + (Number(payment.amount) || 0),
+            );
         });
 
         return Array.from(revenue.entries())
@@ -996,14 +1011,16 @@ export default function Dashboard({
                         />
                     </section>
 
-                    <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_430px_300px]">
+                    <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.7fr)]">
                         <MemberPlanDetails
                             currentMember={currentMember}
                             currentPlan={currentPlan}
                             latestPayment={latestPayment}
                         />
                         <AttendanceOverview member={currentMember} />
-                        <RecentActivity payments={memberPayments} />
+                        <div className="xl:col-span-2">
+                            <RecentActivity payments={memberPayments} />
+                        </div>
                     </section>
 
                     <section className="mt-6">
@@ -1159,7 +1176,7 @@ function MemberPlanDetails({
                     My Plan Details
                 </CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-6 md:grid-cols-[220px_1fr]">
+            <CardContent className="grid gap-6 lg:grid-cols-[minmax(220px,0.85fr)_minmax(260px,1.15fr)]">
                 <div className="rounded-lg bg-violet-50 p-5">
                     <p className="font-semibold text-slate-950">
                         {currentMember?.plan ?? 'No plan yet'}
@@ -1191,7 +1208,7 @@ function MemberPlanDetails({
                         <a href="/my-plan">Manage Plan</a>
                     </Button>
                 </div>
-                <div>
+                <div className="min-w-0">
                     <p className="font-semibold text-slate-950">
                         Plan Information
                     </p>
@@ -1202,15 +1219,14 @@ function MemberPlanDetails({
                         />
                         <InfoRow
                             label="Start Date"
-                            value={
+                            value={readableDate(
                                 currentMember?.plan_started_at ??
-                                currentMember?.join_date ??
-                                'N/A'
-                            }
+                                    currentMember?.join_date,
+                            )}
                         />
                         <InfoRow
                             label="Renew Date"
-                            value={latestPayment?.payment_date ?? 'N/A'}
+                            value={readableDate(latestPayment?.payment_date)}
                         />
                         <InfoRow
                             label="Billing Cycle"
@@ -1323,28 +1339,34 @@ function RecentActivity({ payments }: { payments: Payment[] }) {
                     Recent Activity
                 </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <ActivityItem
-                    icon={CheckCircle2}
-                    title="Checked in"
-                    detail="Today, 07:15 AM"
-                    tone="emerald"
-                />
-                {activities.map((payment) => (
+            <CardContent>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <ActivityItem
-                        key={payment.id}
-                        icon={CreditCard}
-                        title="Payment Successful"
-                        detail={`${payment.payment_date ?? 'Recent'} - ${currency(payment.amount)}`}
-                        tone="violet"
+                        icon={CheckCircle2}
+                        title="Checked in"
+                        detail="Today, 07:15 AM"
+                        tone="emerald"
                     />
-                ))}
+                    {activities.map((payment) => (
+                        <ActivityItem
+                            key={payment.id}
+                            icon={CreditCard}
+                            title="Payment Successful"
+                            detail={`${payment.payment_date ?? 'Recent'} - ${currency(payment.amount)}`}
+                            tone="violet"
+                        />
+                    ))}
+                </div>
                 {!activities.length && (
-                    <p className="text-sm text-slate-500">
+                    <p className="mt-4 text-sm text-slate-500">
                         No recent payment activity.
                     </p>
                 )}
-                <Button asChild variant="link" className="px-0 text-violet-700">
+                <Button
+                    asChild
+                    variant="link"
+                    className="mt-4 px-0 text-violet-700"
+                >
                     <a href="/payments">View all activity</a>
                 </Button>
             </CardContent>
@@ -1403,17 +1425,19 @@ function ActivityItem({
             : 'bg-violet-50 text-violet-600';
 
     return (
-        <div className="flex gap-3">
+        <div className="flex min-w-0 gap-3">
             <span
                 className={`flex size-9 shrink-0 items-center justify-center rounded-full ${toneClass}`}
             >
                 <Icon className="size-4" />
             </span>
-            <span>
+            <span className="min-w-0">
                 <span className="block text-sm font-semibold text-slate-950">
                     {title}
                 </span>
-                <span className="text-sm text-slate-500">{detail}</span>
+                <span className="block truncate text-sm text-slate-500">
+                    {detail}
+                </span>
             </span>
         </div>
     );
@@ -1477,9 +1501,11 @@ function Legend({ color, label }: { color: string; label: string }) {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
     return (
-        <div className="flex justify-between gap-4 py-3">
+        <div className="grid min-w-0 gap-1 py-3 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-4">
             <span className="text-slate-500">{label}</span>
-            <span className="font-medium text-slate-950">{value}</span>
+            <span className="min-w-0 font-medium break-words text-slate-950 sm:text-right">
+                {value}
+            </span>
         </div>
     );
 }

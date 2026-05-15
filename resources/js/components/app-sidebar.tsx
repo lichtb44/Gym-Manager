@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    BarChart3,
     CalendarCheck,
     CreditCard,
     Home,
@@ -49,11 +48,6 @@ const adminNavItems: NavItem[] = [
         title: 'Payments',
         href: '/payments',
         icon: CreditCard,
-    },
-    {
-        title: 'Reports',
-        href: '/dashboard#reports',
-        icon: BarChart3,
     },
     {
         title: 'Settings',

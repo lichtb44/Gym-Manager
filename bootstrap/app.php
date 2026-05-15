@@ -25,6 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 | Request::HEADER_X_FORWARDED_PROTO
                 | Request::HEADER_X_FORWARDED_PREFIX,
         );
+        $middleware->validateCsrfTokens(except: [
+            'stripe/webhook',
+        ]);
 
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,

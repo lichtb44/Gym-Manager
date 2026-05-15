@@ -16,6 +16,7 @@ Route::inertia('/', 'welcome', [
 // Public member registration
 Route::get('/join', [MemberRegisterController::class, 'create'])->name('member.register');
 Route::post('/join', [MemberRegisterController::class, 'store']);
+Route::post('/stripe/webhook', [PaymentController::class, 'stripeWebhook'])->name('stripe.webhook');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
