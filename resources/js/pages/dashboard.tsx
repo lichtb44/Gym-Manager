@@ -200,6 +200,17 @@ const parseDate = (value?: string) => {
 const startOfDay = (date: Date) =>
     new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
+const shortDate = (value?: string) => {
+    const parsed = parseDate(value);
+
+    return parsed
+        ? new Intl.DateTimeFormat(undefined, {
+              month: 'short',
+              day: 'numeric',
+          }).format(parsed)
+        : (value ?? 'N/A');
+};
+
 const sameDay = (first: Date, second: Date) =>
     first.getFullYear() === second.getFullYear() &&
     first.getMonth() === second.getMonth() &&
@@ -316,6 +327,53 @@ export default function Dashboard({
             },
         ];
     }, [attendanceRows, memberRows, paymentRows, planRows]);
+
+    const attendanceByMember = useMemo(() => {
+        const memberAttendance = new Map<
+            string,
+            { present: number; total: number }
+        >();
+
+        attendanceRows.forEach((row) => {
+            const current = memberAttendance.get(row.member) ?? {
+                present: 0,
+                total: 0,
+            };
+
+            current.total += 1;
+            if (row.status.toLowerCase() === 'present') {
+                current.present += 1;
+            }
+
+            memberAttendance.set(row.member, current);
+        });
+
+        return Array.from(memberAttendance.entries())
+            .map(([member, counts]) => ({
+                member,
+                present: counts.present,
+                total: counts.total,
+                rate: counts.total
+                    ? Math.round((counts.present / counts.total) * 100)
+                    : 0,
+            }))
+            .sort((first, second) => second.present - first.present)
+            .slice(0, 6);
+    }, [attendanceRows]);
+
+    const revenueByDate = useMemo(() => {
+        const revenue = new Map<string, number>();
+
+        paymentRows.forEach((payment) => {
+            const key = payment.payment_date ?? payment.date ?? 'Unscheduled';
+            revenue.set(key, (revenue.get(key) ?? 0) + (Number(payment.amount) || 0));
+        });
+
+        return Array.from(revenue.entries())
+            .map(([date, amount]) => ({ date, amount }))
+            .slice(0, 6)
+            .reverse();
+    }, [paymentRows]);
 
     const memberPayments = paymentRows.filter(
         (payment) => payment.member_id === currentMember?.id,
@@ -686,6 +744,65 @@ export default function Dashboard({
 
                     <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
                         <div>
+                            {attendanceRows.length ? (
+                                <DataTable
+                                    id="attendance"
+                                    icon={CalendarCheck}
+                                    title="Member Attendance"
+                                    headers={[
+                                        'Member',
+                                        'Date',
+                                        'Check In',
+                                        'Check Out',
+                                        'Status',
+                                    ]}
+                                >
+                                    {attendanceRows.map((row) => (
+                                        <tr
+                                            key={row.id}
+                                            className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                                        >
+                                            <td className="min-w-48 px-4 py-4 font-medium text-slate-950">
+                                                {row.member}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                {row.date}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                {row.checkIn ?? '-'}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                {row.checkOut ?? '-'}
+                                            </td>
+                                            <td className="px-4 py-4">
+                                                <StatusBadge
+                                                    status={row.status}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </DataTable>
+                            ) : (
+                                <Card
+                                    id="attendance"
+                                    className="rounded-lg border-slate-200 bg-white shadow-sm"
+                                >
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-base">
+                                            <CalendarCheck className="size-5 text-blue-600" />
+                                            Member Attendance
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-sm text-slate-500">
+                                            No member attendance records yet.
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+
+                        <div className="grid content-start gap-6">
                             {pendingApprovals?.length ? (
                                 <DataTable
                                     id="pending-plan-approvals"
@@ -704,7 +821,7 @@ export default function Dashboard({
                                             key={row.id}
                                             className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
                                         >
-                                            <td className="min-w-56 px-4 py-4">
+                                            <td className="min-w-40 px-4 py-4">
                                                 <p className="font-medium text-slate-950">
                                                     {row.name}
                                                 </p>
@@ -765,9 +882,7 @@ export default function Dashboard({
                                     </CardContent>
                                 </Card>
                             )}
-                        </div>
 
-                        <div className="grid gap-6">
                             <Card
                                 id="reports"
                                 className="rounded-lg border-slate-200 bg-white shadow-sm"
@@ -778,15 +893,27 @@ export default function Dashboard({
                                         Reports
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
-                                    <ProgressStat
-                                        label="Attendance Consistency"
-                                        value="87%"
+                                <CardContent className="grid gap-5">
+                                    <ReportBarChart
+                                        title="Member Attendance"
+                                        subtitle="Present days by member"
+                                        emptyText="No attendance records yet."
+                                        items={attendanceByMember.map(
+                                            (item) => ({
+                                                label: item.member,
+                                                value: `${item.present}/${item.total}`,
+                                                percent: item.rate,
+                                                tone: 'emerald',
+                                            }),
+                                        )}
                                     />
-                                    <ProgressStat
-                                        label="Plan Usage"
-                                        value="Premium leads"
+
+                                    <RevenueChart
+                                        title="Money Coming In"
+                                        subtitle="Recent payment totals"
+                                        items={revenueByDate}
                                     />
+
                                     <ProgressStat
                                         label="Payment Health"
                                         value="96% paid"
@@ -1526,6 +1653,123 @@ function ProgressStat({ label, value }: { label: string; value: string }) {
                 <p className="mt-1 text-sm text-slate-500">{value}</p>
             </div>
             <CheckCircle2 className="size-5 text-emerald-600" />
+        </div>
+    );
+}
+
+function ReportBarChart({
+    title,
+    subtitle,
+    emptyText,
+    items,
+}: {
+    title: string;
+    subtitle: string;
+    emptyText: string;
+    items: Array<{
+        label: string;
+        value: string;
+        percent: number;
+        tone: 'emerald' | 'blue';
+    }>;
+}) {
+    return (
+        <div className="rounded-lg border border-slate-200 px-4 py-4">
+            <div className="mb-4">
+                <p className="text-sm font-semibold text-slate-950">{title}</p>
+                <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
+            </div>
+
+            {items.length ? (
+                <div className="grid gap-3">
+                    {items.map((item) => (
+                        <div key={item.label}>
+                            <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
+                                <span className="truncate font-medium text-slate-700">
+                                    {item.label}
+                                </span>
+                                <span className="shrink-0 text-slate-500">
+                                    {item.value}
+                                </span>
+                            </div>
+                            <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                    className={`h-full rounded-full ${
+                                        item.tone === 'emerald'
+                                            ? 'bg-emerald-500'
+                                            : 'bg-blue-500'
+                                    }`}
+                                    style={{
+                                        width: `${Math.max(item.percent, 4)}%`,
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-sm text-slate-500">{emptyText}</p>
+            )}
+        </div>
+    );
+}
+
+function RevenueChart({
+    title,
+    subtitle,
+    items,
+}: {
+    title: string;
+    subtitle: string;
+    items: Array<{ date: string; amount: number }>;
+}) {
+    const maxAmount = Math.max(...items.map((item) => item.amount), 0);
+
+    return (
+        <div className="rounded-lg border border-slate-200 px-4 py-4">
+            <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                        {title}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
+                </div>
+                <p className="text-sm font-semibold text-slate-950">
+                    {currency(
+                        items.reduce((sum, item) => sum + item.amount, 0),
+                    )}
+                </p>
+            </div>
+
+            {items.length ? (
+                <div className="flex h-36 items-end gap-3 border-b border-slate-200 pb-2">
+                    {items.map((item) => {
+                        const height = maxAmount
+                            ? Math.max((item.amount / maxAmount) * 100, 8)
+                            : 8;
+
+                        return (
+                            <div
+                                key={`${item.date}-${item.amount}`}
+                                className="flex min-w-0 flex-1 flex-col items-center gap-2"
+                            >
+                                <div
+                                    className="w-full max-w-12 rounded-t-md bg-blue-500"
+                                    style={{ height: `${height}%` }}
+                                    title={`${shortDate(item.date)} - ${currency(item.amount)}`}
+                                />
+                                <span className="max-w-full truncate text-[11px] text-slate-500">
+                                    {shortDate(item.date)}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <p className="text-sm text-slate-500">
+                    No payment records yet.
+                </p>
+            )}
         </div>
     );
 }
