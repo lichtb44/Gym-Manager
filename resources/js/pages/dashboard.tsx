@@ -1,6 +1,8 @@
 import { Head, router } from '@inertiajs/react';
 import {
     Activity,
+    ArrowUpRight,
+    Bell,
     CalendarCheck,
     CalendarDays,
     CheckCircle2,
@@ -9,9 +11,13 @@ import {
     CreditCard,
     DollarSign,
     Dumbbell,
+    Menu,
     Plus,
+    ReceiptText,
+    Search,
     Settings,
     ShieldCheck,
+    UserPlus,
     UserRound,
     WalletCards,
     Users,
@@ -83,12 +89,21 @@ interface PendingPlanApproval {
     status: string;
 }
 
+interface TrainerRequest {
+    id: number;
+    user: string;
+    requested_trainer: string;
+    date: string;
+    status: string;
+}
+
 interface DashboardProps {
     members?: Member[];
     plans?: Plan[];
     payments?: Payment[];
     attendance?: AttendanceRecord[];
     pendingApprovals?: PendingPlanApproval[];
+    trainerRequests?: TrainerRequest[];
     userRole: 'admin' | 'member';
     member?: Member;
 }
@@ -273,6 +288,7 @@ export default function Dashboard({
     payments = [],
     attendance = [],
     pendingApprovals = [],
+    trainerRequests = [],
     userRole = 'member',
     member,
 }: DashboardProps) {
@@ -293,52 +309,14 @@ export default function Dashboard({
         id: number | string;
     } | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+    const [trainerRequestRows, setTrainerRequestRows] =
+        useState<TrainerRequest[]>(trainerRequests);
 
     const handleLogout = () => {
         if (confirm('Are you sure you want to logout?')) {
             router.post('/logout');
         }
     };
-
-    const metrics = useMemo(() => {
-        const activeMembers = memberRows.filter(
-            (row) => row.status.toLowerCase() === 'active',
-        ).length;
-        const presentToday = attendanceRows.filter(
-            (row) => row.status.toLowerCase() === 'present',
-        ).length;
-        const revenue = paymentRows.reduce(
-            (sum, row) => sum + (Number(row.amount) || 0),
-            0,
-        );
-
-        return [
-            {
-                label: 'Active Members',
-                value: activeMembers.toString(),
-                detail: `${memberRows.length} total profiles`,
-                icon: Users,
-            },
-            {
-                label: 'Plan Catalog',
-                value: planRows.length.toString(),
-                detail: 'Basic, Standard, Premium',
-                icon: ShieldCheck,
-            },
-            {
-                label: 'Attendance Today',
-                value: presentToday.toString(),
-                detail: `${attendanceRows.length} records logged`,
-                icon: CalendarCheck,
-            },
-            {
-                label: 'Payments',
-                value: currency(revenue),
-                detail: `${paymentRows.length} recent transactions`,
-                icon: CreditCard,
-            },
-        ];
-    }, [attendanceRows, memberRows, paymentRows, planRows]);
 
     const attendanceByMember = useMemo(() => {
         const memberAttendance = new Map<
@@ -439,6 +417,24 @@ export default function Dashboard({
     const attendancePercent = Math.round(
         plannedVisits > 0 ? (completedVisits / plannedVisits) * 100 : 0,
     );
+    const activeMembers = memberRows.filter(
+        (row) => row.status.toLowerCase() === 'active',
+    ).length;
+    const paidRevenue = paymentRows
+        .filter((row) => row.status.toLowerCase() === 'paid')
+        .reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+    const presentToday = attendanceRows.filter(
+        (row) => row.status.toLowerCase() === 'present',
+    ).length;
+    const pendingPaymentCount = paymentRows.filter(
+        (row) => row.status.toLowerCase() === 'pending confirmation',
+    ).length;
+    const recentCheckIns = attendanceRows.slice(0, 5);
+    const recentActivity = paymentRows.slice(0, 5);
+    const activePercent = memberRows.length
+        ? Math.round((activeMembers / memberRows.length) * 100)
+        : 0;
+    const pendingPlanCount = pendingApprovals?.length ?? 0;
 
     const handleInputChange =
         (field: string) => (event: ChangeEvent<HTMLInputElement>) => {
@@ -719,11 +715,9 @@ export default function Dashboard({
             </Dialog>
 
             {isAdmin ? (
-                <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
-                    <TopBar
-                        title="Admin Dashboard"
-                        subtitle="Membership operations, attendance, and revenue"
-                        name="admin"
+                <main className="min-h-screen bg-[#f7f8fb] px-4 py-5 text-slate-950 sm:px-6 lg:px-8">
+                    <AdminTopBar
+                        name="Admin"
                         profileMenuOpen={profileMenuOpen}
                         onProfileMenuToggle={() =>
                             setProfileMenuOpen(!profileMenuOpen)
@@ -731,133 +725,172 @@ export default function Dashboard({
                         onLogout={handleLogout}
                     />
 
-                    <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                        {metrics.map((item) => (
-                            <Card
-                                key={item.label}
-                                className="rounded-lg border-slate-200 bg-white shadow-sm"
-                            >
-                                <CardContent className="flex items-center justify-between gap-4 pt-6">
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-500">
-                                            {item.label}
-                                        </p>
-                                        <p className="mt-2 text-2xl font-semibold text-slate-950">
-                                            {item.value}
-                                        </p>
-                                        <p className="mt-1 text-sm text-slate-500">
-                                            {item.detail}
-                                        </p>
-                                    </div>
-                                    <div className="flex size-11 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                                        <item.icon className="size-5" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                    <section className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                        <AdminMetricCard
+                            icon={Users}
+                            label="Total Members"
+                            value={memberRows.length.toString()}
+                            detail={`${activeMembers} active profiles`}
+                            tone="rose"
+                        />
+                        <AdminMetricCard
+                            icon={DollarSign}
+                            label="Revenue"
+                            value={String(currency(paidRevenue))}
+                            detail={`${paymentRows.length} payment records`}
+                            tone="emerald"
+                        />
+                        <AdminMetricCard
+                            icon={CalendarDays}
+                            label="Pending Plans"
+                            value={pendingPlanCount.toString()}
+                            detail="Awaiting approval"
+                            tone="amber"
+                        />
+                        <AdminMetricCard
+                            icon={ArrowUpRight}
+                            label="Check-Ins Today"
+                            value={presentToday.toString()}
+                            detail={`${attendanceRows.length} records logged`}
+                            tone="blue"
+                        />
+                        <AdminMetricCard
+                            icon={Dumbbell}
+                            label="Plan Catalog"
+                            value={planRows.length.toString()}
+                            detail="Active membership offers"
+                            tone="violet"
+                        />
                     </section>
 
-                    <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(520px,0.8fr)]">
-                        <div>
-                            {attendanceRows.length ? (
-                                <DataTable
-                                    id="attendance"
-                                    icon={CalendarCheck}
-                                    title="Member Attendance"
-                                    headers={[
-                                        'Member',
-                                        'Date',
-                                        'Check In',
-                                        'Check Out',
-                                        'Status',
-                                    ]}
-                                >
-                                    {attendanceRows.map((row) => (
-                                        <tr
-                                            key={row.id}
-                                            className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                                        >
-                                            <td className="min-w-48 px-4 py-4 font-medium text-slate-950">
-                                                {row.member}
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                {row.date}
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                {row.checkIn ?? '-'}
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                {row.checkOut ?? '-'}
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <StatusBadge
-                                                    status={row.status}
-                                                />
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </DataTable>
-                            ) : (
+                    <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.78fr)_minmax(300px,0.72fr)]">
+                        <AdminLineChart
+                            items={attendanceByMember}
+                            total={attendanceRows.length}
+                        />
+                        <MembershipStatusCard
+                            total={memberRows.length}
+                            active={activeMembers}
+                            pending={pendingPlanCount}
+                            paid={
+                                paymentRows.filter(
+                                    (payment) =>
+                                        payment.status.toLowerCase() === 'paid',
+                                ).length
+                            }
+                            activePercent={activePercent}
+                        />
+                        <div className="grid content-start gap-5">
+                            <ReminderCard
+                                pendingPlans={pendingPlanCount}
+                                pendingPayments={pendingPaymentCount}
+                                overduePayments={
+                                    paymentRows.filter(
+                                        (payment) =>
+                                            payment.status.toLowerCase() !==
+                                            'paid',
+                                    ).length
+                                }
+                            />
+                            <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-base">
+                                        Quick Actions
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
+                                    <QuickActionTile
+                                        icon={UserPlus}
+                                        label="Add Member"
+                                        onClick={() => {
+                                            setActiveForm('member');
+                                            setFormData(defaultFormData.member);
+                                        }}
+                                    />
+                                    <QuickActionTile
+                                        icon={CalendarCheck}
+                                        label="Check-In"
+                                        onClick={() => {
+                                            setActiveForm('attendance');
+                                            setFormData(
+                                                defaultFormData.attendance,
+                                            );
+                                        }}
+                                    />
+                                    <QuickActionTile
+                                        icon={DollarSign}
+                                        label="New Payment"
+                                        onClick={() => {
+                                            setActiveForm('payment');
+                                            setFormData(
+                                                defaultFormData.payment,
+                                            );
+                                        }}
+                                    />
+                                    <QuickActionTile
+                                        icon={ReceiptText}
+                                        label="Add Plan"
+                                        onClick={() => {
+                                            setActiveForm('plan');
+                                            setFormData(defaultFormData.plan);
+                                        }}
+                                    />
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </section>
+
+                    <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(300px,0.7fr)]">
+                        <CompactListCard
+                            title="Recent Check-Ins"
+                            emptyText="No check-ins yet."
+                            items={recentCheckIns.map((row) => ({
+                                id: row.id,
+                                title: row.member,
+                                detail: row.date,
+                                meta: row.checkIn ?? 'No time',
+                                status: row.status,
+                            }))}
+                        />
+                        <RecentActivityCard payments={recentActivity} />
+                        <div className="grid content-start gap-5">
+                            {pendingApprovals?.length ? (
                                 <Card
-                                    id="attendance"
+                                    id="pending-plan-approvals"
                                     className="rounded-lg border-slate-200 bg-white shadow-sm"
                                 >
-                                    <CardHeader>
+                                    <CardHeader className="pb-3">
                                         <CardTitle className="flex items-center gap-2 text-base">
-                                            <CalendarCheck className="size-5 text-blue-600" />
-                                            Member Attendance
+                                            <ShieldCheck className="size-5 text-blue-600" />
+                                            Plan Approvals
                                         </CardTitle>
                                     </CardHeader>
-                                    <CardContent>
-                                        <p className="text-sm text-slate-500">
-                                            No member attendance records yet.
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </div>
-
-                        <div className="min-w-0">
-                            {pendingApprovals?.length ? (
-                                <DataTable
-                                    id="pending-plan-approvals"
-                                    icon={ShieldCheck}
-                                    title="Pending Plan Approvals"
-                                    headers={[
-                                        'Member',
-                                        'Current Plan',
-                                        'Requested Plan',
-                                        'Status',
-                                        'Actions',
-                                    ]}
-                                >
-                                    {pendingApprovals.map((row) => (
-                                        <tr
-                                            key={row.id}
-                                            className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                                        >
-                                            <td className="min-w-40 px-4 py-4">
-                                                <p className="font-medium text-slate-950">
-                                                    {row.name}
-                                                </p>
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                {row.current_plan}
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                {row.requested_plan ?? 'N/A'}
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <StatusBadge
-                                                    status={row.status}
-                                                />
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+                                    <CardContent className="grid gap-3">
+                                        {pendingApprovals.map((row) => (
+                                            <div
+                                                key={row.id}
+                                                className="rounded-lg border border-slate-100 p-3"
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-sm font-semibold text-slate-950">
+                                                            {row.name}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-slate-500">
+                                                            {row.current_plan}{' '}
+                                                            to{' '}
+                                                            {row.requested_plan ??
+                                                                'N/A'}
+                                                        </p>
+                                                    </div>
+                                                    <StatusBadge
+                                                        status={row.status}
+                                                    />
+                                                </div>
+                                                <div className="mt-3 flex gap-2">
                                                     <ApprovePlanButton
                                                         memberId={row.id}
                                                     />
-
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
@@ -878,16 +911,16 @@ export default function Dashboard({
                                                         Reject
                                                     </Button>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </DataTable>
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
                             ) : (
                                 <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
-                                    <CardHeader>
+                                    <CardHeader className="pb-3">
                                         <CardTitle className="flex items-center gap-2 text-base">
                                             <ShieldCheck className="size-5 text-blue-600" />
-                                            Pending Plan Approvals
+                                            Plan Approvals
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
@@ -897,44 +930,21 @@ export default function Dashboard({
                                     </CardContent>
                                 </Card>
                             )}
+                            <TrainerRequestsCard
+                                requests={trainerRequestRows}
+                                onDecision={(id, status) =>
+                                    setTrainerRequestRows((current) =>
+                                        current.map((request) =>
+                                            request.id === id
+                                                ? { ...request, status }
+                                                : request,
+                                        ),
+                                    )
+                                }
+                            />
+                            <ScheduleCard />
                         </div>
                     </section>
-
-                    <Card
-                        id="reports"
-                        className="mt-6 rounded-lg border-slate-200 bg-white shadow-sm"
-                    >
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-base">
-                                <Activity className="size-5 text-blue-600" />
-                                Reports
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(220px,0.6fr)]">
-                            <ReportBarChart
-                                title="Member Attendance"
-                                subtitle="Present days by member"
-                                emptyText="No attendance records yet."
-                                items={attendanceByMember.map((item) => ({
-                                    label: item.member,
-                                    value: `${item.present}/${item.total}`,
-                                    percent: item.rate,
-                                    tone: 'emerald',
-                                }))}
-                            />
-
-                            <RevenueChart
-                                title="Money Coming In"
-                                subtitle="Recent payment totals"
-                                items={revenueByDate}
-                            />
-
-                            <ProgressStat
-                                label="Payment Health"
-                                value="96% paid"
-                            />
-                        </CardContent>
-                    </Card>
                 </main>
             ) : (
                 <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
@@ -1505,6 +1515,636 @@ function InfoRow({ label, value }: { label: string; value: string }) {
                 {value}
             </span>
         </div>
+    );
+}
+
+function AdminTopBar({
+    name,
+    profileMenuOpen = false,
+    onProfileMenuToggle = () => {},
+    onLogout = () => {},
+}: {
+    name: string;
+    profileMenuOpen?: boolean;
+    onProfileMenuToggle?: () => void;
+    onLogout?: () => void;
+}) {
+    return (
+        <header className="flex flex-col gap-4 border-b border-slate-200 bg-white/80 px-1 pb-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+                <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-10 shrink-0 rounded-lg border-slate-200"
+                    type="button"
+                    aria-label="Open navigation"
+                >
+                    <Menu className="size-5" />
+                </Button>
+                <div className="min-w-0">
+                    <h1 className="truncate text-2xl font-semibold text-slate-950">
+                        Dashboard
+                    </h1>
+                    <p className="mt-1 text-sm text-slate-500">
+                        Welcome back, Admin!
+                    </p>
+                </div>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <label className="relative block min-w-0 sm:w-72 lg:w-80">
+                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                        className="h-10 rounded-lg border-slate-200 bg-white pl-9 text-sm"
+                        placeholder="Search members, invoices..."
+                    />
+                </label>
+                <Button
+                    variant="outline"
+                    size="icon"
+                    className="relative size-10 rounded-lg border-slate-200"
+                    type="button"
+                    aria-label="Notifications"
+                >
+                    <Bell className="size-5" />
+                    <span className="absolute -top-1 -right-1 grid size-5 place-items-center rounded-full bg-red-500 text-[10px] font-semibold text-white">
+                        3
+                    </span>
+                </Button>
+                <div className="relative">
+                    <button
+                        onClick={onProfileMenuToggle}
+                        className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 transition-colors hover:bg-slate-50"
+                        type="button"
+                    >
+                        <div className="grid size-10 place-items-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+                            {initials(name)}
+                        </div>
+                        <div className="min-w-0 text-left">
+                            <p className="truncate text-sm font-semibold text-slate-950">
+                                {name}
+                            </p>
+                            <p className="text-xs text-slate-500">Owner</p>
+                        </div>
+                        <ChevronRight className="size-4 rotate-90 text-slate-400" />
+                    </button>
+
+                    {profileMenuOpen && (
+                        <div className="absolute top-full right-0 z-50 mt-2 w-48 rounded-lg border border-slate-200 bg-white shadow-lg">
+                            <Button
+                                asChild
+                                variant="ghost"
+                                className="w-full justify-start rounded-none border-b"
+                            >
+                                <a href="/settings/profile">Edit Profile</a>
+                            </Button>
+                            <button
+                                onClick={onLogout}
+                                className="flex w-full items-center gap-2 rounded-b-lg px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-rose-600"
+                                type="button"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </header>
+    );
+}
+
+function AdminMetricCard({
+    icon: Icon,
+    label,
+    value,
+    detail,
+    tone,
+}: {
+    icon: IconComponent;
+    label: string;
+    value: string;
+    detail: string;
+    tone: 'rose' | 'emerald' | 'amber' | 'blue' | 'violet';
+}) {
+    const tones = {
+        rose: 'bg-rose-50 text-rose-500',
+        emerald: 'bg-emerald-50 text-emerald-600',
+        amber: 'bg-amber-50 text-amber-600',
+        blue: 'bg-blue-50 text-blue-600',
+        violet: 'bg-violet-50 text-violet-600',
+    };
+
+    return (
+        <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+            <CardContent className="flex items-center gap-4 p-5">
+                <span
+                    className={`grid size-14 shrink-0 place-items-center rounded-full ${tones[tone]}`}
+                >
+                    <Icon className="size-7" />
+                </span>
+                <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-700">
+                        {label}
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold text-slate-950">
+                        {value}
+                    </p>
+                    <p className="mt-2 truncate text-xs text-slate-500">
+                        {detail}
+                    </p>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function AdminLineChart({
+    items,
+    total,
+}: {
+    items: Array<{
+        member: string;
+        present: number;
+        total: number;
+        rate: number;
+    }>;
+    total: number;
+}) {
+    const chartItems = items.length
+        ? items
+        : [
+              { member: 'Mon', present: 20, total: 30, rate: 40 },
+              { member: 'Tue', present: 28, total: 35, rate: 52 },
+              { member: 'Wed', present: 34, total: 40, rate: 65 },
+              { member: 'Thu', present: 30, total: 36, rate: 58 },
+              { member: 'Fri', present: 42, total: 45, rate: 82 },
+          ];
+    const maxValue = Math.max(...chartItems.map((item) => item.present), 1);
+
+    return (
+        <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
+                <CardTitle className="text-base">Check-Ins Overview</CardTitle>
+                <Button variant="outline" size="sm" type="button">
+                    This Week
+                </Button>
+            </CardHeader>
+            <CardContent>
+                <div className="flex h-64 items-end gap-3 border-b border-slate-200 pb-4">
+                    {chartItems.map((item) => {
+                        const height = Math.max(
+                            (item.present / maxValue) * 100,
+                            12,
+                        );
+
+                        return (
+                            <div
+                                key={item.member}
+                                className="flex min-w-0 flex-1 flex-col items-center gap-3"
+                            >
+                                <div className="flex h-48 w-full items-end rounded-t-lg bg-gradient-to-t from-rose-50 to-transparent px-1">
+                                    <div
+                                        className="w-full rounded-t-md bg-gradient-to-t from-rose-300 to-rose-500"
+                                        style={{ height: `${height}%` }}
+                                    />
+                                </div>
+                                <span className="max-w-full truncate text-xs text-slate-500">
+                                    {item.member.split(' ')[0]}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+                <p className="mt-4 text-sm text-slate-500">
+                    {total} attendance records across recent members.
+                </p>
+            </CardContent>
+        </Card>
+    );
+}
+
+function MembershipStatusCard({
+    total,
+    active,
+    pending,
+    paid,
+    activePercent,
+}: {
+    total: number;
+    active: number;
+    pending: number;
+    paid: number;
+    activePercent: number;
+}) {
+    const pendingPercent = total ? Math.round((pending / total) * 100) : 0;
+    const paidPercent = total ? Math.round((paid / total) * 100) : 0;
+
+    return (
+        <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-base">Membership Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center gap-6">
+                    <div
+                        className="grid size-40 shrink-0 place-items-center rounded-full"
+                        style={{
+                            background: `conic-gradient(#22c55e 0 ${activePercent}%, #f59e0b ${activePercent}% ${activePercent + pendingPercent}%, #3b82f6 ${activePercent + pendingPercent}% ${activePercent + pendingPercent + paidPercent}%, #e5e7eb 0)`,
+                        }}
+                    >
+                        <div className="grid size-24 place-items-center rounded-full bg-white text-center shadow-sm">
+                            <span>
+                                <span className="block text-2xl font-semibold text-slate-950">
+                                    {total}
+                                </span>
+                                <span className="text-xs text-slate-500">
+                                    Total
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-3 text-sm">
+                        <StatusLegend
+                            color="bg-emerald-500"
+                            label="Active"
+                            value={`${active} (${activePercent}%)`}
+                        />
+                        <StatusLegend
+                            color="bg-amber-500"
+                            label="Pending"
+                            value={`${pending} (${pendingPercent}%)`}
+                        />
+                        <StatusLegend
+                            color="bg-blue-500"
+                            label="Paid Records"
+                            value={`${paid}`}
+                        />
+                    </div>
+                </div>
+                <Button
+                    asChild
+                    variant="link"
+                    className="mt-5 px-0 text-blue-700"
+                >
+                    <a href="/members">View all members</a>
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
+function StatusLegend({
+    color,
+    label,
+    value,
+}: {
+    color: string;
+    label: string;
+    value: string;
+}) {
+    return (
+        <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-slate-600">
+                <span className={`size-2 rounded-full ${color}`} />
+                {label}
+            </span>
+            <span className="font-medium text-slate-950">{value}</span>
+        </div>
+    );
+}
+
+function ReminderCard({
+    pendingPlans,
+    pendingPayments,
+    overduePayments,
+}: {
+    pendingPlans: number;
+    pendingPayments: number;
+    overduePayments: number;
+}) {
+    const reminders = [
+        {
+            icon: CalendarDays,
+            count: pendingPlans,
+            label: 'plan change approvals',
+            tone: 'bg-rose-50 text-rose-500',
+        },
+        {
+            icon: CreditCard,
+            count: pendingPayments,
+            label: 'payment confirmations',
+            tone: 'bg-amber-50 text-amber-600',
+        },
+        {
+            icon: ReceiptText,
+            count: overduePayments,
+            label: 'unpaid payment records',
+            tone: 'bg-blue-50 text-blue-600',
+        },
+    ];
+
+    return (
+        <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base">Reminders</CardTitle>
+                <a
+                    href="/payments"
+                    className="text-xs font-semibold text-blue-700"
+                >
+                    View all
+                </a>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+                {reminders.map((item) => (
+                    <div
+                        key={item.label}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-3"
+                    >
+                        <span className="flex min-w-0 items-center gap-3">
+                            <span
+                                className={`grid size-10 shrink-0 place-items-center rounded-lg ${item.tone}`}
+                            >
+                                <item.icon className="size-5" />
+                            </span>
+                            <span className="min-w-0 text-sm">
+                                <span className="font-semibold text-slate-950">
+                                    {item.count}
+                                </span>{' '}
+                                <span className="text-slate-600">
+                                    {item.label}
+                                </span>
+                            </span>
+                        </span>
+                        <ChevronRight className="size-4 shrink-0 text-slate-400" />
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
+    );
+}
+
+function QuickActionTile({
+    icon: Icon,
+    label,
+    onClick,
+}: {
+    icon: IconComponent;
+    label: string;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="grid min-h-20 place-items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-center text-sm font-semibold text-blue-900 transition hover:border-blue-200 hover:bg-blue-50"
+        >
+            <Icon className="mb-2 size-5 text-blue-700" />
+            {label}
+        </button>
+    );
+}
+
+function CompactListCard({
+    title,
+    emptyText,
+    items,
+}: {
+    title: string;
+    emptyText: string;
+    items: Array<{
+        id: number | string;
+        title: string;
+        detail: string;
+        meta: string;
+        status: string;
+    }>;
+}) {
+    return (
+        <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base">{title}</CardTitle>
+                <a
+                    href="/dashboard#attendance"
+                    className="text-xs font-semibold text-blue-700"
+                >
+                    View all
+                </a>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+                {items.length ? (
+                    items.map((item) => (
+                        <div
+                            key={item.id}
+                            className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-3"
+                        >
+                            <span className="flex min-w-0 items-center gap-3">
+                                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+                                    {initials(item.title)}
+                                </span>
+                                <span className="min-w-0">
+                                    <span className="block truncate text-sm font-semibold text-slate-950">
+                                        {item.title}
+                                    </span>
+                                    <span className="block truncate text-xs text-slate-500">
+                                        {item.detail}
+                                    </span>
+                                </span>
+                            </span>
+                            <span className="shrink-0 text-right">
+                                <span className="block text-xs text-slate-500">
+                                    {item.meta}
+                                </span>
+                                <StatusBadge status={item.status} />
+                            </span>
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-sm text-slate-500">{emptyText}</p>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function RecentActivityCard({ payments }: { payments: Payment[] }) {
+    return (
+        <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base">Recent Activity</CardTitle>
+                <a
+                    href="/payments"
+                    className="text-xs font-semibold text-blue-700"
+                >
+                    View all
+                </a>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+                {payments.length ? (
+                    payments.map((payment) => (
+                        <ActivityItem
+                            key={payment.id}
+                            icon={CreditCard}
+                            title={`${payment.status} payment`}
+                            detail={`${payment.member ?? `Member #${payment.member_id}`} - ${currency(payment.amount)}`}
+                            tone={
+                                payment.status.toLowerCase() === 'paid'
+                                    ? 'emerald'
+                                    : 'violet'
+                            }
+                        />
+                    ))
+                ) : (
+                    <p className="text-sm text-slate-500">
+                        No recent payment activity.
+                    </p>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function TrainerRequestsCard({
+    requests,
+    onDecision,
+}: {
+    requests: TrainerRequest[];
+    onDecision: (id: number, status: string) => void;
+}) {
+    const pendingRequests = requests.filter(
+        (request) => request.status.toLowerCase() === 'pending',
+    );
+
+    return (
+        <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                    <Dumbbell className="size-5 text-red-500" />
+                    Trainer Requests
+                </CardTitle>
+                <a
+                    href="/trainers"
+                    className="text-xs font-semibold text-blue-700"
+                >
+                    View all
+                </a>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+                <p className="text-sm font-semibold text-slate-700">
+                    Pending Requests
+                </p>
+                {pendingRequests.length ? (
+                    pendingRequests.map((request) => (
+                        <div
+                            key={request.id}
+                            className="rounded-lg border border-slate-100 p-3"
+                        >
+                            <div className="space-y-1 text-sm">
+                                <p>
+                                    <span className="text-slate-500">
+                                        User:
+                                    </span>{' '}
+                                    <span className="font-semibold text-slate-950">
+                                        {request.user}
+                                    </span>
+                                </p>
+                                <p>
+                                    <span className="text-slate-500">
+                                        Requested Trainer:
+                                    </span>{' '}
+                                    <span className="font-semibold text-slate-950">
+                                        {request.requested_trainer}
+                                    </span>
+                                </p>
+                                <p className="text-slate-500">
+                                    Date: {request.date}
+                                </p>
+                            </div>
+                            <div className="mt-3 flex gap-2">
+                                <Button
+                                    size="sm"
+                                    className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                    type="button"
+                                    onClick={() =>
+                                        onDecision(request.id, 'Approved')
+                                    }
+                                >
+                                    Approve
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                                    type="button"
+                                    onClick={() =>
+                                        onDecision(request.id, 'Rejected')
+                                    }
+                                >
+                                    Reject
+                                </Button>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-sm text-slate-500">
+                        No pending trainer requests.
+                    </p>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function ScheduleCard() {
+    const sessions = [
+        ['6:00 AM', 'Morning HIIT', 'Booked'],
+        ['9:00 AM', 'Strength Training', 'Booked'],
+        ['5:00 PM', 'Yoga Class', 'Booked'],
+        ['7:00 PM', 'Boxing Training', 'Available'],
+    ];
+
+    return (
+        <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base">
+                    Today&apos;s Schedule
+                </CardTitle>
+                <a
+                    href="/attendance"
+                    className="text-xs font-semibold text-blue-700"
+                >
+                    View all
+                </a>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+                {sessions.map(([time, title, status]) => (
+                    <div
+                        key={`${time}-${title}`}
+                        className="flex items-center justify-between gap-3 text-sm"
+                    >
+                        <span className="font-semibold text-slate-950">
+                            {time}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium text-slate-800">
+                                {title}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                                Coach assigned
+                            </span>
+                        </span>
+                        <span
+                            className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                                status === 'Booked'
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : 'bg-amber-50 text-amber-700'
+                            }`}
+                        >
+                            {status}
+                        </span>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
     );
 }
 

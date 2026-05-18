@@ -8,6 +8,7 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\MemberRegisterController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PlanController;
+use App\Http\Controllers\TrainerRatingController;
 
 Route::inertia('/', 'welcome', [
     'canRegister' => Features::enabled(Features::registration()),
@@ -23,10 +24,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('my-plan', [DashboardController::class, 'myPlan'])->name('my-plan');
     Route::get('attendance', [DashboardController::class, 'attendance'])->name('attendance');
     Route::get('payments', [DashboardController::class, 'payments'])->name('payments');
+    Route::get('trainers', [DashboardController::class, 'trainers'])->name('trainers');
     Route::post('payments', [PaymentController::class, 'memberStore'])->name('payments.store');
     Route::get('payments/stripe/success/{payment}', [PaymentController::class, 'stripeSuccess'])
         ->name('payments.stripe-success');
     Route::post('dashboard/select-plan', [MemberController::class, 'selectPlan'])->name('dashboard.select-plan');
+
+    // Trainer rating routes
+    Route::post('trainers/{trainerId}/rate', [TrainerRatingController::class, 'store'])->name('trainers.rate');
+    Route::get('trainers/{trainerId}/my-rating', [TrainerRatingController::class, 'getTrainerRating'])->name('trainers.my-rating');
+    Route::get('trainers/{trainerId}/average-rating', [TrainerRatingController::class, 'getTrainerAverageRating'])->name('trainers.average-rating');
 
     Route::middleware('admin')->group(function () {
         Route::get('members', [DashboardController::class, 'members'])->name('members');
@@ -47,6 +54,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('dashboard/attendances', [AttendanceController::class, 'store']);
         Route::match(['delete', 'post'], 'dashboard/attendances/{id}', [AttendanceController::class, 'destroy']);
+
+        // Trainer rating admin routes
+        Route::get('dashboard/trainer-ratings', [TrainerRatingController::class, 'getPendingRatings']);
+        Route::post('dashboard/trainer-ratings/{id}/approve', [TrainerRatingController::class, 'approveRating']);
+        Route::post('dashboard/trainer-ratings/{id}/reject', [TrainerRatingController::class, 'rejectRating']);
     });
 
     // Allow both members and admins to update members (with authorization check in controller)

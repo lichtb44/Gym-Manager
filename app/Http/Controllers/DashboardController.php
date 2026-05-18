@@ -184,6 +184,13 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function trainers()
+    {
+        return inertia('admin-trainers', [
+            'trainerRequests' => $this->trainerRequests(),
+        ]);
+    }
+
     private function generateAttendanceRecords($members)
     {
         $attendanceRecords = [];
@@ -269,7 +276,21 @@ class DashboardController extends Controller
             'pendingPaymentConfirmations' => $pendingPaymentConfirmations,
             'attendance' => $attendance,
             'pendingApprovals' => $pendingApprovals,
+            'trainerRequests' => $this->trainerRequests(),
             'userRole' => 'admin',
+        ]);
+    }
+
+    private function trainerRequests()
+    {
+        return collect([
+            [
+                'id' => 1,
+                'user' => 'Juan Dela Cruz',
+                'requested_trainer' => 'The Rock',
+                'date' => 'Today',
+                'status' => 'Pending',
+            ],
         ]);
     }
 
