@@ -6,6 +6,7 @@ use App\Models\Member;
 use App\Models\Plan;
 use App\Models\Payment;
 use App\Models\Attendance;
+use App\Models\TrainerRequest;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -64,6 +65,26 @@ class DashboardController extends Controller
             'member' => $memberProfile,
             'plans' => Plan::where('status', 'Active')->get(),
             'payments' => $payments,
+        ]);
+    }
+
+    public function todaysWorkout()
+    {
+        $user = auth()->user();
+        $member = Member::where('user_id', $user->id)->first();
+        $memberProfile = $member ?: [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => null,
+            'plan' => 'No plan yet',
+            'plan_started_at' => null,
+            'status' => 'Pending',
+            'join_date' => optional($user->created_at)->format('M j, Y'),
+        ];
+
+        return inertia('todays-workout', [
+            'member' => $memberProfile,
         ]);
     }
 
@@ -186,8 +207,14 @@ class DashboardController extends Controller
 
     public function trainers()
     {
+        $user = auth()->user();
+        $member = $user->isAdmin() ? null : Member::where('user_id', $user->id)->first();
+
         return inertia('admin-trainers', [
-            'trainerRequests' => $this->trainerRequests(),
+            'trainerRequests' => $this->trainerRequests($member?->id),
+            'trainers' => $this->trainerCatalog(),
+            'userRole' => $user->isAdmin() ? 'admin' : 'member',
+            'memberPlan' => $member?->plan ?? 'No plan yet',
         ]);
     }
 
@@ -277,21 +304,123 @@ class DashboardController extends Controller
             'attendance' => $attendance,
             'pendingApprovals' => $pendingApprovals,
             'trainerRequests' => $this->trainerRequests(),
+            'trainers' => $this->trainerCatalog(),
             'userRole' => 'admin',
         ]);
     }
 
-    private function trainerRequests()
+    private function trainerRequests(?int $memberId = null)
     {
+        return TrainerRequest::with('member')
+            ->when($memberId, fn ($query) => $query->where('member_id', $memberId))
+            ->latest()
+            ->get()
+            ->map(function (TrainerRequest $request) {
+                $requestedTrainer = collect($this->trainerCatalog())->firstWhere('id', $request->requested_trainer_id);
+
+                return [
+                    'id' => $request->id,
+                    'user' => $request->member?->name ?? 'Member',
+                    'member_id' => $request->member_id,
+                    'requested_trainer_id' => $request->requested_trainer_id,
+                    'requested_trainer' => $request->requested_trainer,
+                    'assigned_trainer_id' => $request->assigned_trainer_id,
+                    'assigned_trainer' => $request->assigned_trainer,
+                    'date' => optional($request->created_at)->format('M j, Y'),
+                    'status' => $request->status,
+                    'requested_trainer_full' => $requestedTrainer
+                        ? $requestedTrainer['filledSlots'] >= $requestedTrainer['capacity']
+                        : false,
+                ];
+            });
+    }
+
+    private function trainerCatalog()
+    {
+        $approvedCounts = TrainerRequest::where('status', 'Approved')
+            ->selectRaw('COALESCE(assigned_trainer_id, requested_trainer_id) as trainer_id, count(*) as total')
+            ->groupBy('trainer_id')
+            ->pluck('total', 'trainer_id');
+
         return collect([
             [
                 'id' => 1,
-                'user' => 'Juan Dela Cruz',
-                'requested_trainer' => 'The Rock',
-                'date' => 'Today',
-                'status' => 'Pending',
+                'name' => 'John Cena',
+                'specialty' => 'Strength',
+                'experience' => 18,
+                'rating' => 4.9,
+                'capacity' => 10,
+                'banner' => '/images/trainers/john cena.jpg',
+                'photo' => '/images/trainers/john cena.jpg',
+                'accent' => 'from-red-500 to-slate-900',
+                'description' => 'A high-energy strength coach focused on consistency, discipline, and measurable progress. John builds programs around compound lifts, safe form, and weekly performance targets.',
+                'focusAreas' => ['Strength cycles', 'Power training', 'Beginner form work'],
+                'coachingStyle' => 'Motivational, structured, and goal-driven.',
             ],
-        ]);
+            [
+                'id' => 2,
+                'name' => 'The Rock',
+                'specialty' => 'Functional Training',
+                'experience' => 20,
+                'rating' => 4.9,
+                'capacity' => 10,
+                'banner' => '/images/trainers/the rock.jpg',
+                'photo' => '/images/trainers/the rock.jpg',
+                'accent' => 'from-amber-500 to-slate-900',
+                'description' => 'A functional training specialist who blends athletic conditioning, mobility, and full-body strength. The Rock is best for members who want explosive workouts and strong everyday performance.',
+                'focusAreas' => ['Functional strength', 'Conditioning', 'Mobility and stamina'],
+                'coachingStyle' => 'Intense, encouraging, and performance-focused.',
+            ],
+            [
+                'id' => 3,
+                'name' => 'Arnold Schwarzenegger',
+                'specialty' => 'Bodybuilding',
+                'experience' => 25,
+                'rating' => 4.9,
+                'capacity' => 10,
+                'banner' => '/images/trainers/arnold schwarzenegger.jpg',
+                'photo' => '/images/trainers/arnold schwarzenegger.jpg',
+                'accent' => 'from-emerald-500 to-slate-900',
+                'description' => 'A bodybuilding coach for members who want muscle growth, symmetry, and stage-ready discipline. Arnold emphasizes progressive overload, nutrition habits, and focused hypertrophy routines.',
+                'focusAreas' => ['Bodybuilding', 'Hypertrophy', 'Nutrition discipline'],
+                'coachingStyle' => 'Classic, precise, and results-oriented.',
+            ],
+            [
+                'id' => 4,
+                'name' => 'Sylvester Gardenzio Stallone',
+                'specialty' => 'Boxing',
+                'experience' => 22,
+                'rating' => 4.8,
+                'capacity' => 10,
+                'banner' => '/images/trainers/Sylvester stallone.jpg',
+                'photo' => '/images/trainers/Sylvester stallone.jpg',
+                'accent' => 'from-blue-500 to-slate-900',
+                'description' => 'A boxing and conditioning coach built for members who want grit, coordination, and fight-ready cardio. Sylvester develops footwork, punching mechanics, and resilient conditioning.',
+                'focusAreas' => ['Boxing fundamentals', 'Footwork', 'Fight conditioning'],
+                'coachingStyle' => 'Tough, focused, and confidence-building.',
+            ],
+            [
+                'id' => 5,
+                'name' => 'Ma Dong-seok',
+                'specialty' => 'Boxing',
+                'experience' => 16,
+                'rating' => 4.9,
+                'capacity' => 10,
+                'banner' => '/images/trainers/ma dong-seok.jpg',
+                'photo' => '/images/trainers/ma dong-seok.jpg',
+                'accent' => 'from-violet-500 to-slate-900',
+                'description' => 'A powerful boxing and functional strength coach who specializes in heavy conditioning and practical movement. Ma Dong-seok helps members build strength that feels useful outside the gym.',
+                'focusAreas' => ['Boxing power', 'Functional strength', 'Core stability'],
+                'coachingStyle' => 'Calm, direct, and strength-first.',
+            ],
+        ])->map(function ($trainer) use ($approvedCounts) {
+            $filledSlots = (int) ($approvedCounts[$trainer['id']] ?? 0);
+
+            return $trainer + [
+                'activeMembers' => $filledSlots,
+                'filledSlots' => $filledSlots,
+            ];
+        })->values();
     }
 
     private function paymentRows($payments)

@@ -26,8 +26,7 @@ export function AppSidebarHeader({
 }) {
     const page = usePage();
     const { auth } = page.props;
-    const title =
-        auth.user?.role === 'admin' ? 'Admin Dashboard' : 'Member Portal';
+    const title = auth.user?.role === 'admin' ? 'Admin Dashboard' : 'Dashboard';
     const pageProps = page.props as {
         member?: {
             plan?: string;
@@ -174,7 +173,7 @@ export function AppSidebarHeader({
                                     href={notification.href}
                                     className="flex gap-3 rounded-2xl px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50"
                                 >
-                                    <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                                    <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
                                         <notification.icon className="size-4" />
                                     </span>
                                     <span>

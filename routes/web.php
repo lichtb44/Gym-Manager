@@ -9,6 +9,7 @@ use App\Http\Controllers\MemberRegisterController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\TrainerRatingController;
+use App\Http\Controllers\TrainerRequestController;
 
 Route::inertia('/', 'welcome', [
     'canRegister' => Features::enabled(Features::registration()),
@@ -21,6 +22,7 @@ Route::post('/stripe/webhook', [PaymentController::class, 'stripeWebhook'])->nam
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('todays-workout', [DashboardController::class, 'todaysWorkout'])->name('todays-workout');
     Route::get('my-plan', [DashboardController::class, 'myPlan'])->name('my-plan');
     Route::get('attendance', [DashboardController::class, 'attendance'])->name('attendance');
     Route::get('payments', [DashboardController::class, 'payments'])->name('payments');
@@ -29,6 +31,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('payments/stripe/success/{payment}', [PaymentController::class, 'stripeSuccess'])
         ->name('payments.stripe-success');
     Route::post('dashboard/select-plan', [MemberController::class, 'selectPlan'])->name('dashboard.select-plan');
+    Route::post('trainers/request', [TrainerRequestController::class, 'store'])->name('trainers.request');
 
     // Trainer rating routes
     Route::post('trainers/{trainerId}/rate', [TrainerRatingController::class, 'store'])->name('trainers.rate');
@@ -54,6 +57,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('dashboard/attendances', [AttendanceController::class, 'store']);
         Route::match(['delete', 'post'], 'dashboard/attendances/{id}', [AttendanceController::class, 'destroy']);
+        Route::post('dashboard/trainer-requests/{id}/decide', [TrainerRequestController::class, 'decide'])
+            ->name('dashboard.trainer-requests.decide');
 
         // Trainer rating admin routes
         Route::get('dashboard/trainer-ratings', [TrainerRatingController::class, 'getPendingRatings']);

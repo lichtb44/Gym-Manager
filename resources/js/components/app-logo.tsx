@@ -3,11 +3,12 @@ import AppLogoIcon from '@/components/app-logo-icon';
 
 export default function AppLogo() {
     const { auth } = usePage().props;
-    const label = auth.user?.role === 'admin' ? 'Admin Dashboard' : 'Member Portal';
+    const label =
+        auth.user?.role === 'admin' ? 'Admin Dashboard' : 'Fitness System';
 
     return (
         <>
-            <div className="flex aspect-square size-8 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-sm shadow-violet-500/20">
+            <div className="flex aspect-square size-8 items-center justify-center rounded-xl bg-red-500 text-white shadow-sm shadow-red-500/20">
                 <AppLogoIcon className="size-5 fill-current" />
             </div>
             <div className="ml-3 grid flex-1 text-left text-sm">

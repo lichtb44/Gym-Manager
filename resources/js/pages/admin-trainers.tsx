@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
     Award,
     Dumbbell,
@@ -40,13 +40,15 @@ interface Trainer {
 
 interface TrainerRequest {
     id: number;
+    requested_trainer_id: number;
     user: string;
     requested_trainer: string;
     date: string;
     status: string;
+    requested_trainer_full?: boolean;
 }
 
-const trainers: Trainer[] = [
+const defaultTrainers: Trainer[] = [
     {
         id: 1,
         name: 'John Cena',
@@ -150,18 +152,27 @@ const initials = (name = 'Trainer') =>
 
 export default function AdminTrainers({
     trainerRequests = [],
+    trainers = defaultTrainers,
+    userRole = 'member',
+    memberPlan = 'No plan yet',
 }: {
     trainerRequests?: TrainerRequest[];
+    trainers?: Trainer[];
+    userRole?: 'admin' | 'member';
+    memberPlan?: string;
 }) {
+    const isAdmin = userRole === 'admin';
+    const canChooseTrainer = isAdmin || memberPlan.toLowerCase() === 'premium';
+    const mustUpgradeForTrainer = !isAdmin && !canChooseTrainer;
     const [search, setSearch] = useState('');
     const [activeFilter, setActiveFilter] = useState('Available');
     const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(
         null,
     );
     const [profileTrainer, setProfileTrainer] = useState<Trainer | null>(null);
-    const [requestStatus, setRequestStatus] = useState<Record<number, string>>(
-        {},
-    );
+    const [assignedTrainers, setAssignedTrainers] = useState<
+        Record<number, number>
+    >({});
     const [userRating, setUserRating] = useState<number | null>(null);
     const [userReview, setUserReview] = useState('');
     const [isSubmittingRating, setIsSubmittingRating] = useState(false);
@@ -188,19 +199,62 @@ export default function AdminTrainers({
         trainerRequests.filter(
             (request) => request.status.toLowerCase() === 'pending',
         ).length +
-        Object.values(requestStatus).filter((status) => status === 'Pending')
-            .length;
+        0;
+
+    const availableTrainers = trainers.filter(
+        (trainer) => trainer.filledSlots < trainer.capacity,
+    );
+    const trainerById = (id: number) =>
+        trainers.find((trainer) => trainer.id === id);
+    const requestByTrainerId = (trainerId: number) =>
+        trainerRequests.find(
+            (request) =>
+                request.requested_trainer_id === trainerId &&
+                request.status.toLowerCase() === 'pending',
+        );
 
     const sendRequest = () => {
         if (!selectedTrainer) {
             return;
         }
 
-        setRequestStatus((current) => ({
-            ...current,
-            [selectedTrainer.id]: 'Pending',
-        }));
-        setSelectedTrainer(null);
+        if (mustUpgradeForTrainer) {
+            router.visit('/my-plan');
+            return;
+        }
+
+        router.post(
+            '/trainers/request',
+            {
+                trainer_id: selectedTrainer.id,
+                trainer_name: selectedTrainer.name,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => setSelectedTrainer(null),
+            },
+        );
+    };
+
+    const decideRequest = (request: TrainerRequest, action: string) => {
+        const selectedTrainerId =
+            assignedTrainers[request.id] ??
+            (request.requested_trainer_full
+                ? availableTrainers[0]?.id
+                : request.requested_trainer_id);
+        const selectedTrainer = trainerById(selectedTrainerId);
+
+        router.post(
+            `/dashboard/trainer-requests/${request.id}/decide`,
+            {
+                action,
+                assigned_trainer_id: selectedTrainer?.id,
+                assigned_trainer: selectedTrainer?.name,
+            },
+            {
+                preserveScroll: true,
+            },
+        );
     };
 
     const submitRating = async () => {
@@ -267,8 +321,11 @@ export default function AdminTrainers({
                                 Gym Manager Trainers
                             </h1>
                             <p className="mt-1 text-sm text-slate-500">
-                                Assign members to premium coaches with live slot
-                                capacity and approval tracking.
+                                {isAdmin
+                                    ? 'Approve member coach requests and manage live capacity.'
+                                    : mustUpgradeForTrainer
+                                      ? 'Only Premium members can choose a trainer. Change your plan to Premium to continue.'
+                                      : 'Choose a coach and send the request to admin approval.'}
                             </p>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-3">
@@ -290,6 +347,156 @@ export default function AdminTrainers({
                         </div>
                     </div>
                 </section>
+
+                {isAdmin && (
+                    <section className="mt-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <h2 className="text-base font-semibold text-slate-950">
+                                    Pending Trainer Requests
+                                </h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Approve the requested trainer or assign an
+                                    available one when the request is full.
+                                </p>
+                            </div>
+                            <Badge className="bg-amber-50 text-amber-700">
+                                {pendingCount} pending
+                            </Badge>
+                        </div>
+                        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                            {trainerRequests
+                                .filter(
+                                    (request) =>
+                                        request.status.toLowerCase() ===
+                                        'pending',
+                                )
+                                .map((request) => (
+                                    <div
+                                        key={request.id}
+                                        className="rounded-lg border border-slate-100 p-3"
+                                    >
+                                        <p className="text-sm font-semibold text-slate-950">
+                                            {request.user}
+                                        </p>
+                                        <p className="mt-1 text-sm text-slate-500">
+                                            Requested{' '}
+                                            <span className="font-medium text-slate-800">
+                                                {request.requested_trainer}
+                                            </span>{' '}
+                                            on {request.date}
+                                        </p>
+                                        {request.requested_trainer_full && (
+                                            <label className="mt-3 block text-xs font-semibold text-slate-600">
+                                                Assign Trainer
+                                                <select
+                                                    className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950"
+                                                    value={
+                                                        assignedTrainers[
+                                                            request.id
+                                                        ] ??
+                                                        availableTrainers[0]
+                                                            ?.id ??
+                                                        ''
+                                                    }
+                                                    onChange={(event) =>
+                                                        setAssignedTrainers(
+                                                            (current) => ({
+                                                                ...current,
+                                                                [request.id]:
+                                                                    Number(
+                                                                        event
+                                                                            .target
+                                                                            .value,
+                                                                    ),
+                                                            }),
+                                                        )
+                                                    }
+                                                >
+                                                    {availableTrainers.map(
+                                                        (trainer) => (
+                                                            <option
+                                                                key={
+                                                                    trainer.id
+                                                                }
+                                                                value={
+                                                                    trainer.id
+                                                                }
+                                                            >
+                                                                {trainer.name} (
+                                                                {trainer.capacity -
+                                                                    trainer.filledSlots}{' '}
+                                                                slots)
+                                                            </option>
+                                                        ),
+                                                    )}
+                                                </select>
+                                            </label>
+                                        )}
+                                        <div className="mt-3 flex gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                disabled={
+                                                    request.requested_trainer_full &&
+                                                    !availableTrainers.length
+                                                }
+                                                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                                onClick={() =>
+                                                    decideRequest(
+                                                        request,
+                                                        'approve',
+                                                    )
+                                                }
+                                            >
+                                                Approve
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="border-rose-200 text-rose-700 hover:bg-rose-50"
+                                                onClick={() =>
+                                                    decideRequest(
+                                                        request,
+                                                        'reject',
+                                                    )
+                                                }
+                                            >
+                                                Reject
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            {!pendingCount && (
+                                <p className="text-sm text-slate-500">
+                                    No pending trainer requests.
+                                </p>
+                            )}
+                        </div>
+                    </section>
+                )}
+
+                {mustUpgradeForTrainer && (
+                    <section className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm font-semibold text-amber-900">
+                                    Trainer selection is only available on Premium.
+                                </p>
+                                <p className="mt-1 text-sm text-amber-800">
+                                    Change your plan to Premium to request a trainer.
+                                </p>
+                            </div>
+                            <Button
+                                asChild
+                                className="bg-red-500 text-white hover:bg-red-600"
+                            >
+                                <a href="/my-plan">Change Plan</a>
+                            </Button>
+                        </div>
+                    </section>
+                )}
 
                 <section className="mt-5 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
                     <label className="relative block min-w-0 lg:w-96">
@@ -330,9 +537,19 @@ export default function AdminTrainers({
                         <TrainerCard
                             key={trainer.id}
                             trainer={trainer}
-                            requestStatus={requestStatus[trainer.id]}
+                            requestStatus={
+                                requestByTrainerId(trainer.id)?.status
+                            }
                             onViewProfile={() => setProfileTrainer(trainer)}
-                            onChoose={() => setSelectedTrainer(trainer)}
+                            onChoose={() =>
+                                mustUpgradeForTrainer
+                                    ? router.visit('/my-plan')
+                                    : isAdmin
+                                    ? setProfileTrainer(trainer)
+                                    : setSelectedTrainer(trainer)
+                            }
+                            isAdmin={isAdmin}
+                            canChooseTrainer={canChooseTrainer}
                         />
                     ))}
                 </section>
@@ -559,6 +776,10 @@ export default function AdminTrainers({
                                             type="button"
                                             className="bg-red-500 text-white hover:bg-red-600"
                                             onClick={() => {
+                                                if (mustUpgradeForTrainer) {
+                                                    router.visit('/my-plan');
+                                                    return;
+                                                }
                                                 setSelectedTrainer(
                                                     profileTrainer,
                                                 );
@@ -583,11 +804,15 @@ function TrainerCard({
     requestStatus,
     onViewProfile,
     onChoose,
+    isAdmin,
+    canChooseTrainer,
 }: {
     trainer: Trainer;
     requestStatus?: string;
     onViewProfile: () => void;
     onChoose: () => void;
+    isAdmin: boolean;
+    canChooseTrainer: boolean;
 }) {
     const isFull = trainer.filledSlots >= trainer.capacity;
     const remainingSlots = trainer.capacity - trainer.filledSlots;
@@ -714,11 +939,19 @@ function TrainerCard({
                     </Button>
                     <Button
                         type="button"
-                        disabled={isFull || Boolean(requestStatus)}
+                        disabled={!isAdmin && Boolean(requestStatus)}
                         className="bg-red-500 text-white hover:bg-red-600 disabled:bg-slate-200 disabled:text-slate-500"
                         onClick={onChoose}
                     >
-                        {isFull ? 'Slots Full' : 'Choose Trainer'}
+                        {isAdmin
+                            ? 'View Details'
+                            : !canChooseTrainer
+                              ? 'Upgrade to Premium'
+                            : requestStatus
+                              ? 'Request Pending'
+                              : isFull
+                                ? 'Request Anyway'
+                                : 'Choose Trainer'}
                     </Button>
                 </div>
             </CardContent>
