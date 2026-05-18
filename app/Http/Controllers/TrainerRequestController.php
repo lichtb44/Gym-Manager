@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Member;
+use App\Models\Payment;
 use App\Models\TrainerRequest as TrainerRequestModel;
 use Illuminate\Http\Request;
 
@@ -41,9 +42,42 @@ class TrainerRequestController extends Controller
                 ->withErrors('Only Premium members can choose a trainer. Change your plan to Premium first.');
         }
 
-        TrainerRequestModel::where('member_id', $member->id)
+        $approvedSameTrainer = TrainerRequestModel::where('member_id', $member->id)
+            ->where('status', 'Approved')
+            ->whereRaw('COALESCE(assigned_trainer_id, requested_trainer_id) = ?', [$validated['trainer_id']])
+            ->exists();
+
+        if ($approvedSameTrainer) {
+            return redirect()
+                ->route('trainers')
+                ->withErrors('You are already being trained by this trainer.');
+        }
+
+        $pendingSameTrainer = TrainerRequestModel::where('member_id', $member->id)
             ->where('status', 'Pending')
-            ->delete();
+            ->where('requested_trainer_id', $validated['trainer_id'])
+            ->exists();
+
+        if ($pendingSameTrainer) {
+            return redirect()
+                ->route('trainers')
+                ->withErrors('You already sent a request for this trainer.');
+        }
+
+        $hasApprovedTrainer = TrainerRequestModel::where('member_id', $member->id)
+            ->where('status', 'Approved')
+            ->exists();
+
+        if ($hasApprovedTrainer) {
+            Payment::create([
+                'member_id' => $member->id,
+                'plan' => 'Additional Trainer - '.$validated['trainer_name'],
+                'amount' => 50,
+                'method' => 'Trainer Add-on',
+                'status' => 'Pending Confirmation',
+                'payment_date' => now()->toDateString(),
+            ]);
+        }
 
         TrainerRequestModel::create([
             'member_id' => $member->id,
@@ -81,6 +115,16 @@ class TrainerRequestController extends Controller
 
         $assignedTrainerId = $validated['assigned_trainer_id'] ?? $trainerRequest->requested_trainer_id;
         $assignedTrainer = $validated['assigned_trainer'] ?? $trainerRequest->requested_trainer;
+
+        $alreadyAssigned = TrainerRequestModel::where('member_id', $trainerRequest->member_id)
+            ->where('id', '!=', $trainerRequest->id)
+            ->where('status', 'Approved')
+            ->whereRaw('COALESCE(assigned_trainer_id, requested_trainer_id) = ?', [$assignedTrainerId])
+            ->exists();
+
+        if ($alreadyAssigned) {
+            return back()->withErrors('This member is already being trained by that trainer.');
+        }
 
         $trainerRequest->update([
             'assigned_trainer_id' => $assignedTrainerId,

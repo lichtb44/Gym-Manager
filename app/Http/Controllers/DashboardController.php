@@ -311,12 +311,20 @@ class DashboardController extends Controller
 
     private function trainerRequests(?int $memberId = null)
     {
+        if (!Schema::hasTable('trainer_requests')) {
+            return collect();
+        }
+
         return TrainerRequest::with('member')
             ->when($memberId, fn ($query) => $query->where('member_id', $memberId))
             ->latest()
             ->get()
             ->map(function (TrainerRequest $request) {
                 $requestedTrainer = collect($this->trainerCatalog())->firstWhere('id', $request->requested_trainer_id);
+                $approvedTrainerCount = TrainerRequest::where('member_id', $request->member_id)
+                    ->where('status', 'Approved')
+                    ->where('id', '!=', $request->id)
+                    ->count();
 
                 return [
                     'id' => $request->id,
@@ -328,6 +336,8 @@ class DashboardController extends Controller
                     'assigned_trainer' => $request->assigned_trainer,
                     'date' => optional($request->created_at)->format('M j, Y'),
                     'status' => $request->status,
+                    'extra_fee_required' => $request->status === 'Pending' && $approvedTrainerCount > 0,
+                    'extra_fee_amount' => 50,
                     'requested_trainer_full' => $requestedTrainer
                         ? $requestedTrainer['filledSlots'] >= $requestedTrainer['capacity']
                         : false,
@@ -337,12 +347,33 @@ class DashboardController extends Controller
 
     private function trainerCatalog()
     {
+        if (!Schema::hasTable('trainer_requests')) {
+            return collect($this->baseTrainerCatalog())->map(function ($trainer) {
+                return $trainer + [
+                    'activeMembers' => 0,
+                    'filledSlots' => 0,
+                ];
+            })->values();
+        }
+
         $approvedCounts = TrainerRequest::where('status', 'Approved')
             ->selectRaw('COALESCE(assigned_trainer_id, requested_trainer_id) as trainer_id, count(*) as total')
             ->groupBy('trainer_id')
             ->pluck('total', 'trainer_id');
 
-        return collect([
+        return collect($this->baseTrainerCatalog())->map(function ($trainer) use ($approvedCounts) {
+            $filledSlots = (int) ($approvedCounts[$trainer['id']] ?? 0);
+
+            return $trainer + [
+                'activeMembers' => $filledSlots,
+                'filledSlots' => $filledSlots,
+            ];
+        })->values();
+    }
+
+    private function baseTrainerCatalog(): array
+    {
+        return [
             [
                 'id' => 1,
                 'name' => 'John Cena',
@@ -413,14 +444,7 @@ class DashboardController extends Controller
                 'focusAreas' => ['Boxing power', 'Functional strength', 'Core stability'],
                 'coachingStyle' => 'Calm, direct, and strength-first.',
             ],
-        ])->map(function ($trainer) use ($approvedCounts) {
-            $filledSlots = (int) ($approvedCounts[$trainer['id']] ?? 0);
-
-            return $trainer + [
-                'activeMembers' => $filledSlots,
-                'filledSlots' => $filledSlots,
-            ];
-        })->values();
+        ];
     }
 
     private function paymentRows($payments)

@@ -27,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->ensureMemberPlanColumns();
+        $this->ensureTrainerRequestsTable();
     }
 
     /**
@@ -115,6 +116,25 @@ class AppServiceProvider extends ServiceProvider
                 $table->string('plan_status')->default('active')->after('pending_plan');
             });
         }
+    }
+
+    protected function ensureTrainerRequestsTable(): void
+    {
+        if (!Schema::hasTable('members') || Schema::hasTable('trainer_requests')) {
+            return;
+        }
+
+        Schema::create('trainer_requests', function ($table) {
+            $table->id();
+            $table->foreignId('member_id')->constrained()->cascadeOnDelete();
+            $table->unsignedInteger('requested_trainer_id');
+            $table->string('requested_trainer');
+            $table->unsignedInteger('assigned_trainer_id')->nullable();
+            $table->string('assigned_trainer')->nullable();
+            $table->string('status')->default('Pending');
+            $table->timestamp('decided_at')->nullable();
+            $table->timestamps();
+        });
     }
 
 }

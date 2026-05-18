@@ -104,6 +104,8 @@ interface TrainerRequest {
     assigned_trainer?: string | null;
     date: string;
     status: string;
+    extra_fee_required?: boolean;
+    extra_fee_amount?: number;
     requested_trainer_full?: boolean;
 }
 
@@ -3656,6 +3658,12 @@ function TrainerRequestsCard({
                                 <p className="text-slate-500">
                                     Date: {request.date}
                                 </p>
+                                {request.extra_fee_required && (
+                                    <p className="font-medium text-red-700">
+                                        Additional trainer add-on: $
+                                        {request.extra_fee_amount ?? 50}
+                                    </p>
+                                )}
                                 {request.requested_trainer_full && (
                                     <p className="font-medium text-amber-700">
                                         Requested trainer is full. Assign an

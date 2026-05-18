@@ -41,10 +41,14 @@ interface Trainer {
 interface TrainerRequest {
     id: number;
     requested_trainer_id: number;
+    assigned_trainer_id?: number | null;
     user: string;
     requested_trainer: string;
+    assigned_trainer?: string | null;
     date: string;
     status: string;
+    extra_fee_required?: boolean;
+    extra_fee_amount?: number;
     requested_trainer_full?: boolean;
 }
 
@@ -178,6 +182,31 @@ export default function AdminTrainers({
     const [isSubmittingRating, setIsSubmittingRating] = useState(false);
     const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
+    const trainerRequestFor = (trainerId: number) =>
+        trainerRequests.find((request) => {
+            const selectedTrainerId =
+                request.assigned_trainer_id ?? request.requested_trainer_id;
+
+            return (
+                selectedTrainerId === trainerId &&
+                ['approved', 'pending'].includes(request.status.toLowerCase())
+            );
+        });
+
+    const approvedTrainerCount = trainerRequests.filter(
+        (request) => request.status.toLowerCase() === 'approved',
+    ).length;
+
+    const selectedTrainerRelationship = selectedTrainer
+        ? trainerRequestFor(selectedTrainer.id)
+        : undefined;
+    const selectedTrainerNeedsExtraFee =
+        !isAdmin && approvedTrainerCount > 0 && !selectedTrainerRelationship;
+
+    const profileTrainerRelationship = profileTrainer
+        ? trainerRequestFor(profileTrainer.id)
+        : undefined;
+
     const visibleTrainers = useMemo(() => {
         return trainers.filter((trainer) => {
             const matchesSearch =
@@ -193,7 +222,7 @@ export default function AdminTrainers({
 
             return matchesSearch && matchesFilter;
         });
-    }, [activeFilter, search]);
+    }, [activeFilter, search, trainers]);
 
     const pendingCount =
         trainerRequests.filter(
@@ -206,13 +235,6 @@ export default function AdminTrainers({
     );
     const trainerById = (id: number) =>
         trainers.find((trainer) => trainer.id === id);
-    const requestByTrainerId = (trainerId: number) =>
-        trainerRequests.find(
-            (request) =>
-                request.requested_trainer_id === trainerId &&
-                request.status.toLowerCase() === 'pending',
-        );
-
     const sendRequest = () => {
         if (!selectedTrainer) {
             return;
@@ -220,6 +242,10 @@ export default function AdminTrainers({
 
         if (mustUpgradeForTrainer) {
             router.visit('/my-plan');
+            return;
+        }
+
+        if (selectedTrainerRelationship) {
             return;
         }
 
@@ -386,6 +412,12 @@ export default function AdminTrainers({
                                             </span>{' '}
                                             on {request.date}
                                         </p>
+                                        {request.extra_fee_required && (
+                                            <p className="mt-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                                                Additional trainer add-on:
+                                                ${request.extra_fee_amount ?? 50}
+                                            </p>
+                                        )}
                                         {request.requested_trainer_full && (
                                             <label className="mt-3 block text-xs font-semibold text-slate-600">
                                                 Assign Trainer
@@ -538,7 +570,12 @@ export default function AdminTrainers({
                             key={trainer.id}
                             trainer={trainer}
                             requestStatus={
-                                requestByTrainerId(trainer.id)?.status
+                                trainerRequestFor(trainer.id)?.status
+                            }
+                            extraFeeRequired={
+                                !isAdmin &&
+                                approvedTrainerCount > 0 &&
+                                !trainerRequestFor(trainer.id)
                             }
                             onViewProfile={() => setProfileTrainer(trainer)}
                             onChoose={() =>
@@ -598,13 +635,26 @@ export default function AdminTrainers({
                                 </p>
                             </div>
                         )}
+                        {selectedTrainerNeedsExtraFee && (
+                            <div className="rounded-lg border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                                This is an additional trainer. A $50 trainer
+                                add-on payment will be added for admin
+                                confirmation.
+                            </div>
+                        )}
                         <DialogFooter>
                             <Button
                                 type="button"
+                                disabled={Boolean(selectedTrainerRelationship)}
                                 className="bg-red-500 text-white hover:bg-red-600"
                                 onClick={sendRequest}
                             >
-                                Send Request
+                                {selectedTrainerRelationship?.status.toLowerCase() ===
+                                'approved'
+                                    ? 'Already Your Trainer'
+                                    : selectedTrainerRelationship
+                                      ? 'Request Pending'
+                                      : 'Send Request'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
@@ -775,9 +825,15 @@ export default function AdminTrainers({
                                         <Button
                                             type="button"
                                             className="bg-red-500 text-white hover:bg-red-600"
+                                            disabled={Boolean(
+                                                profileTrainerRelationship,
+                                            )}
                                             onClick={() => {
                                                 if (mustUpgradeForTrainer) {
                                                     router.visit('/my-plan');
+                                                    return;
+                                                }
+                                                if (profileTrainerRelationship) {
                                                     return;
                                                 }
                                                 setSelectedTrainer(
@@ -786,7 +842,12 @@ export default function AdminTrainers({
                                                 handleProfileTrainerChange(null);
                                             }}
                                         >
-                                            Choose Trainer
+                                            {profileTrainerRelationship?.status.toLowerCase() ===
+                                            'approved'
+                                                ? 'Already Your Trainer'
+                                                : profileTrainerRelationship
+                                                  ? 'Request Pending'
+                                                  : 'Choose Trainer'}
                                         </Button>
                                     </DialogFooter>
                                 </div>
@@ -802,6 +863,7 @@ export default function AdminTrainers({
 function TrainerCard({
     trainer,
     requestStatus,
+    extraFeeRequired,
     onViewProfile,
     onChoose,
     isAdmin,
@@ -809,6 +871,7 @@ function TrainerCard({
 }: {
     trainer: Trainer;
     requestStatus?: string;
+    extraFeeRequired?: boolean;
     onViewProfile: () => void;
     onChoose: () => void;
     isAdmin: boolean;
@@ -924,7 +987,15 @@ function TrainerCard({
 
                 {requestStatus && (
                     <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
-                        Request Pending
+                        {requestStatus.toLowerCase() === 'approved'
+                            ? 'Already Your Trainer'
+                            : 'Request Pending'}
+                    </div>
+                )}
+
+                {!requestStatus && extraFeeRequired && (
+                    <div className="mt-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                        Extra trainer add-on: $50
                     </div>
                 )}
 
@@ -947,8 +1018,10 @@ function TrainerCard({
                             ? 'View Details'
                             : !canChooseTrainer
                               ? 'Upgrade to Premium'
-                            : requestStatus
-                              ? 'Request Pending'
+                            : requestStatus?.toLowerCase() === 'approved'
+                              ? 'Already Your Trainer'
+                              : requestStatus
+                                ? 'Request Pending'
                               : isFull
                                 ? 'Request Anyway'
                                 : 'Choose Trainer'}
