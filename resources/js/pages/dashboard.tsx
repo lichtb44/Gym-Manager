@@ -757,7 +757,7 @@ export default function Dashboard({
                         ))}
                     </section>
 
-                    <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+                    <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(520px,0.8fr)]">
                         <div>
                             {attendanceRows.length ? (
                                 <DataTable
@@ -817,7 +817,7 @@ export default function Dashboard({
                             )}
                         </div>
 
-                        <div className="grid content-start gap-6">
+                        <div className="min-w-0">
                             {pendingApprovals?.length ? (
                                 <DataTable
                                     id="pending-plan-approvals"
@@ -897,46 +897,44 @@ export default function Dashboard({
                                     </CardContent>
                                 </Card>
                             )}
-
-                            <Card
-                                id="reports"
-                                className="rounded-lg border-slate-200 bg-white shadow-sm"
-                            >
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-base">
-                                        <Activity className="size-5 text-blue-600" />
-                                        Reports
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid gap-5">
-                                    <ReportBarChart
-                                        title="Member Attendance"
-                                        subtitle="Present days by member"
-                                        emptyText="No attendance records yet."
-                                        items={attendanceByMember.map(
-                                            (item) => ({
-                                                label: item.member,
-                                                value: `${item.present}/${item.total}`,
-                                                percent: item.rate,
-                                                tone: 'emerald',
-                                            }),
-                                        )}
-                                    />
-
-                                    <RevenueChart
-                                        title="Money Coming In"
-                                        subtitle="Recent payment totals"
-                                        items={revenueByDate}
-                                    />
-
-                                    <ProgressStat
-                                        label="Payment Health"
-                                        value="96% paid"
-                                    />
-                                </CardContent>
-                            </Card>
                         </div>
                     </section>
+
+                    <Card
+                        id="reports"
+                        className="mt-6 rounded-lg border-slate-200 bg-white shadow-sm"
+                    >
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <Activity className="size-5 text-blue-600" />
+                                Reports
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(220px,0.6fr)]">
+                            <ReportBarChart
+                                title="Member Attendance"
+                                subtitle="Present days by member"
+                                emptyText="No attendance records yet."
+                                items={attendanceByMember.map((item) => ({
+                                    label: item.member,
+                                    value: `${item.present}/${item.total}`,
+                                    percent: item.rate,
+                                    tone: 'emerald',
+                                }))}
+                            />
+
+                            <RevenueChart
+                                title="Money Coming In"
+                                subtitle="Recent payment totals"
+                                items={revenueByDate}
+                            />
+
+                            <ProgressStat
+                                label="Payment Health"
+                                value="96% paid"
+                            />
+                        </CardContent>
+                    </Card>
                 </main>
             ) : (
                 <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
@@ -1806,9 +1804,6 @@ function ApprovePlanButton({ memberId }: { memberId: number }) {
             `/dashboard/members/${memberId}/approve-plan`,
             {
                 action: 'approve',
-                payment_method: 'Credit Card',
-                payment_date: new Date().toISOString().slice(0, 10),
-                payment_amount: null,
             },
             {
                 preserveScroll: true,

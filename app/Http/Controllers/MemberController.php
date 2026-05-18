@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Member;
-use App\Models\Payment;
-use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
@@ -199,23 +197,6 @@ class MemberController extends Controller
                 return redirect()->route('dashboard')->withErrors('No pending plan to approve.');
             }
 
-            $validated = $request->validate([
-                'payment_method' => ['required', 'string', 'max:255'],
-                'payment_date' => ['nullable', 'date'],
-                'payment_amount' => ['nullable', 'numeric', 'min:0'],
-            ]);
-
-            $plan = Plan::where('name', $member->pending_plan)->first();
-
-            $amount = $validated['payment_amount'];
-            if ($amount === null && $plan) {
-                $amount = $plan->price;
-            }
-            if ($amount === null) {
-                return redirect()->route('dashboard')->withErrors('Payment amount is required.');
-            }
-
-            // Activate plan
             $updates = [
                 'plan' => $member->pending_plan,
                 'pending_plan' => null,
@@ -229,16 +210,6 @@ class MemberController extends Controller
             }
 
             $member->update($updates);
-
-            // Confirm payment (create paid payment record)
-            Payment::create([
-                'member_id' => $member->id,
-                'plan' => $member->plan,
-                'amount' => $amount,
-                'method' => $validated['payment_method'],
-                'status' => 'Paid',
-                'payment_date' => $validated['payment_date'] ?? now()->toDateString(),
-            ]);
         } elseif ($action === 'reject') {
             $member->update([
                 'pending_plan' => null,
