@@ -54,6 +54,11 @@ class PlanController extends Controller
     public function destroy(string $id)
     {
         $plan = Plan::findOrFail($id);
+
+        if ($plan->isDefault()) {
+            return redirect()->route('plans')->withErrors('Default plans cannot be deleted.');
+        }
+
         $plan->delete();
 
         return redirect()->route('dashboard');

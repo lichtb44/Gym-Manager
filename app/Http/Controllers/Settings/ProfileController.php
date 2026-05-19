@@ -68,6 +68,10 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
+        if ($user->isAdmin()) {
+            return to_route('profile.edit')->withErrors('The built-in admin account cannot be deleted.');
+        }
+
         Auth::logout();
 
         $user->delete();
