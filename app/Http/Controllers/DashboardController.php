@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Member;
+use App\Models\NonMemberVisit;
 use App\Models\Plan;
 use App\Models\Payment;
 use App\Models\Attendance;
@@ -202,6 +203,18 @@ class DashboardController extends Controller
 
         return inertia('admin-members', [
             'users' => $users,
+            'nonMemberVisits' => NonMemberVisit::latest('entered_at')
+                ->take(25)
+                ->get()
+                ->map(fn (NonMemberVisit $visit) => [
+                    'id' => $visit->id,
+                    'name' => $visit->name,
+                    'phone' => $visit->phone,
+                    'purpose' => $visit->purpose,
+                    'logged_by' => $visit->logged_by,
+                    'notes' => $visit->notes,
+                    'entered_at' => optional($visit->entered_at)->format('M j, Y g:i A'),
+                ]),
         ]);
     }
 
@@ -315,7 +328,7 @@ class DashboardController extends Controller
             return collect();
         }
 
-        return TrainerRequest::with('member')
+        return TrainerRequest::with(['member', 'requestedTrainer', 'assignedTrainer'])
             ->when($memberId, fn ($query) => $query->where('member_id', $memberId))
             ->latest()
             ->get()
@@ -331,9 +344,13 @@ class DashboardController extends Controller
                     'user' => $request->member?->name ?? 'Member',
                     'member_id' => $request->member_id,
                     'requested_trainer_id' => $request->requested_trainer_id,
+                    'requested_trainer_user_id' => $request->requested_trainer_user_id,
                     'requested_trainer' => $request->requested_trainer,
                     'assigned_trainer_id' => $request->assigned_trainer_id,
+                    'assigned_trainer_user_id' => $request->assigned_trainer_user_id,
                     'assigned_trainer' => $request->assigned_trainer,
+                    'trainer_user' => $request->assignedTrainer?->name ?? $request->requestedTrainer?->name,
+                    'trainer_email' => $request->assignedTrainer?->email ?? $request->requestedTrainer?->email,
                     'date' => optional($request->created_at)->format('M j, Y'),
                     'status' => $request->status,
                     'extra_fee_required' => $request->status === 'Pending' && $approvedTrainerCount > 0,
@@ -349,7 +366,12 @@ class DashboardController extends Controller
     {
         if (!Schema::hasTable('trainer_requests')) {
             return collect($this->baseTrainerCatalog())->map(function ($trainer) {
+                $trainerUser = User::where('trainer_profile_id', $trainer['id'])->first();
+
                 return $trainer + [
+                    'userId' => $trainerUser?->id,
+                    'email' => $trainerUser?->email,
+                    'role' => $trainerUser?->role ?? 'trainer',
                     'activeMembers' => 0,
                     'filledSlots' => 0,
                 ];
@@ -363,8 +385,12 @@ class DashboardController extends Controller
 
         return collect($this->baseTrainerCatalog())->map(function ($trainer) use ($approvedCounts) {
             $filledSlots = (int) ($approvedCounts[$trainer['id']] ?? 0);
+            $trainerUser = User::where('trainer_profile_id', $trainer['id'])->first();
 
             return $trainer + [
+                'userId' => $trainerUser?->id,
+                'email' => $trainerUser?->email,
+                'role' => $trainerUser?->role ?? 'trainer',
                 'activeMembers' => $filledSlots,
                 'filledSlots' => $filledSlots,
             ];
@@ -387,6 +413,8 @@ class DashboardController extends Controller
                 'description' => 'A high-energy strength coach focused on consistency, discipline, and measurable progress. John builds programs around compound lifts, safe form, and weekly performance targets.',
                 'focusAreas' => ['Strength cycles', 'Power training', 'Beginner form work'],
                 'coachingStyle' => 'Motivational, structured, and goal-driven.',
+                'recommendation' => 'Best for members who want to get stronger, learn safe lifting form, and stay accountable with clear weekly goals.',
+                'idealFor' => ['Beginners', 'Strength gains', 'Consistent routines'],
             ],
             [
                 'id' => 2,
@@ -401,6 +429,8 @@ class DashboardController extends Controller
                 'description' => 'A functional training specialist who blends athletic conditioning, mobility, and full-body strength. The Rock is best for members who want explosive workouts and strong everyday performance.',
                 'focusAreas' => ['Functional strength', 'Conditioning', 'Mobility and stamina'],
                 'coachingStyle' => 'Intense, encouraging, and performance-focused.',
+                'recommendation' => 'Best for members who want athletic workouts, better mobility, and full-body conditioning that carries into daily life.',
+                'idealFor' => ['Weight loss', 'Stamina', 'Functional fitness'],
             ],
             [
                 'id' => 3,
@@ -415,6 +445,8 @@ class DashboardController extends Controller
                 'description' => 'A bodybuilding coach for members who want muscle growth, symmetry, and stage-ready discipline. Arnold emphasizes progressive overload, nutrition habits, and focused hypertrophy routines.',
                 'focusAreas' => ['Bodybuilding', 'Hypertrophy', 'Nutrition discipline'],
                 'coachingStyle' => 'Classic, precise, and results-oriented.',
+                'recommendation' => 'Best for members focused on muscle size, body shape, nutrition discipline, and detailed progress tracking.',
+                'idealFor' => ['Muscle growth', 'Physique goals', 'Advanced training'],
             ],
             [
                 'id' => 4,
@@ -429,6 +461,8 @@ class DashboardController extends Controller
                 'description' => 'A boxing and conditioning coach built for members who want grit, coordination, and fight-ready cardio. Sylvester develops footwork, punching mechanics, and resilient conditioning.',
                 'focusAreas' => ['Boxing fundamentals', 'Footwork', 'Fight conditioning'],
                 'coachingStyle' => 'Tough, focused, and confidence-building.',
+                'recommendation' => 'Best for members who want boxing skills, sharper coordination, stronger cardio, and a tougher mindset.',
+                'idealFor' => ['Boxing basics', 'Cardio', 'Confidence'],
             ],
             [
                 'id' => 5,
@@ -443,6 +477,8 @@ class DashboardController extends Controller
                 'description' => 'A powerful boxing and functional strength coach who specializes in heavy conditioning and practical movement. Ma Dong-seok helps members build strength that feels useful outside the gym.',
                 'focusAreas' => ['Boxing power', 'Functional strength', 'Core stability'],
                 'coachingStyle' => 'Calm, direct, and strength-first.',
+                'recommendation' => 'Best for members who want practical strength, powerful boxing drills, core control, and steady coaching.',
+                'idealFor' => ['Power training', 'Core strength', 'Practical fitness'],
             ],
         ];
     }
@@ -482,6 +518,8 @@ class DashboardController extends Controller
         $payments = [];
         if ($member) {
             $payments = Payment::where('member_id', $member->id)
+                ->latest('payment_date')
+                ->latest()
                 ->get()
                 ->map(function ($payment) {
                     return [

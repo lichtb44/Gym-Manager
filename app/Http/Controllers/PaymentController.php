@@ -17,6 +17,7 @@ class PaymentController extends Controller
         $user = $request->user();
         $validated = $request->validate([
             'method' => ['required', 'string', 'max:255'],
+            'payment_id' => ['nullable', 'integer', 'exists:payments,id'],
         ]);
 
         if ($user->isAdmin()) {
@@ -43,14 +44,42 @@ class PaymentController extends Controller
             return redirect()->back()->withErrors('Your current plan could not be found.');
         }
 
-        $payment = Payment::create([
-            'member_id' => $member->id,
-            'plan' => $member->plan,
-            'amount' => $plan->price,
-            'method' => $validated['method'],
-            'status' => 'Pending',
-            'payment_date' => now()->toDateString(),
-        ]);
+        $payment = null;
+
+        if (!empty($validated['payment_id'])) {
+            $payment = Payment::where('member_id', $member->id)
+                ->where('status', '!=', 'Paid')
+                ->find($validated['payment_id']);
+
+            if (!$payment) {
+                return redirect()->back()->withErrors('That pending payment could not be found.');
+            }
+        }
+
+        if (!$payment) {
+            $payment = Payment::where('member_id', $member->id)
+                ->where('status', '!=', 'Paid')
+                ->oldest('payment_date')
+                ->oldest()
+                ->first();
+        }
+
+        if (!$payment) {
+            $payment = Payment::create([
+                'member_id' => $member->id,
+                'plan' => $member->plan,
+                'amount' => $plan->price,
+                'method' => $validated['method'],
+                'status' => 'Pending',
+                'payment_date' => now()->toDateString(),
+            ]);
+        } else {
+            $payment->update([
+                'method' => $validated['method'],
+                'status' => 'Pending',
+                'payment_date' => now()->toDateString(),
+            ]);
+        }
 
         if (strtolower($validated['method']) !== 'stripe') {
             $payment->update([
@@ -63,7 +92,9 @@ class PaymentController extends Controller
         $stripeSecret = config('services.stripe.secret');
 
         if (!$stripeSecret) {
-            $payment->delete();
+            $payment->update([
+                'status' => 'Failed',
+            ]);
 
             return redirect()->back()->withErrors('Stripe is not configured. Add STRIPE_SECRET_KEY to your .env file.');
         }
@@ -85,9 +116,9 @@ class PaymentController extends Controller
                     'quantity' => 1,
                     'price_data' => [
                         'currency' => config('services.stripe.currency', 'usd'),
-                        'unit_amount' => (int) round(((float) $plan->price) * 100),
+                        'unit_amount' => (int) round(((float) $payment->amount) * 100),
                         'product_data' => [
-                            'name' => "{$member->plan} Membership",
+                            'name' => "{$payment->plan} Membership",
                             'description' => "FitCore Manager membership payment for {$member->name}",
                         ],
                     ],
@@ -95,7 +126,9 @@ class PaymentController extends Controller
             ]);
 
         if ($response->failed()) {
-            $payment->delete();
+            $payment->update([
+                'status' => 'Failed',
+            ]);
 
             return redirect()->back()->withErrors($response->json('error.message') ?? 'Stripe Checkout could not be started.');
         }

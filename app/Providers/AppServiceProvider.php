@@ -5,6 +5,7 @@ namespace App\Providers;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -28,6 +29,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->ensureMemberPlanColumns();
         $this->ensureTrainerRequestsTable();
+        $this->ensureTrainerUserLinks();
+        $this->ensureDefaultTrainerUsers();
     }
 
     /**
@@ -129,12 +132,102 @@ class AppServiceProvider extends ServiceProvider
             $table->foreignId('member_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('requested_trainer_id');
             $table->string('requested_trainer');
+            $table->foreignId('requested_trainer_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->unsignedInteger('assigned_trainer_id')->nullable();
             $table->string('assigned_trainer')->nullable();
+            $table->foreignId('assigned_trainer_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('status')->default('Pending');
             $table->timestamp('decided_at')->nullable();
             $table->timestamps();
         });
+    }
+
+    protected function ensureTrainerUserLinks(): void
+    {
+        if (!Schema::hasTable('users')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('users', 'trainer_profile_id')) {
+            Schema::table('users', function ($table) {
+                $table->unsignedInteger('trainer_profile_id')->nullable()->unique()->after('role');
+            });
+        }
+
+        if (!Schema::hasTable('trainer_requests')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('trainer_requests', 'requested_trainer_user_id')) {
+            Schema::table('trainer_requests', function ($table) {
+                $table->foreignId('requested_trainer_user_id')
+                    ->nullable()
+                    ->after('requested_trainer')
+                    ->constrained('users')
+                    ->nullOnDelete();
+            });
+        }
+
+        if (!Schema::hasColumn('trainer_requests', 'assigned_trainer_user_id')) {
+            Schema::table('trainer_requests', function ($table) {
+                $table->foreignId('assigned_trainer_user_id')
+                    ->nullable()
+                    ->after('assigned_trainer')
+                    ->constrained('users')
+                    ->nullOnDelete();
+            });
+        }
+    }
+
+    protected function ensureDefaultTrainerUsers(): void
+    {
+        if (!Schema::hasTable('users') || !Schema::hasColumn('users', 'trainer_profile_id')) {
+            return;
+        }
+
+        $now = now();
+
+        foreach ($this->defaultTrainerUsers() as $trainer) {
+            $existingTrainer = DB::table('users')->where('email', $trainer['email'])->first();
+
+            if ($existingTrainer) {
+                DB::table('users')
+                    ->where('id', $existingTrainer->id)
+                    ->update([
+                        'name' => $trainer['name'],
+                        'role' => 'trainer',
+                        'trainer_profile_id' => $trainer['profile_id'],
+                        'updated_at' => $now,
+                    ]);
+
+                continue;
+            }
+
+            DB::table('users')->insert([
+                'name' => $trainer['name'],
+                'email' => $trainer['email'],
+                'role' => 'trainer',
+                'trainer_profile_id' => $trainer['profile_id'],
+                'email_verified_at' => $now,
+                'password' => Hash::make('password'),
+                'updated_at' => $now,
+                'created_at' => $now,
+            ]);
+        }
+    }
+
+    /**
+     * @return array<int, array{name: string, email: string, profile_id: int}>
+     */
+    protected function defaultTrainerUsers(): array
+    {
+        return [
+            ['profile_id' => 1, 'name' => 'John Cena', 'email' => 'john.cena@gymfit.test'],
+            ['profile_id' => 2, 'name' => 'The Rock', 'email' => 'the.rock@gymfit.test'],
+            ['profile_id' => 3, 'name' => 'Arnold Schwarzenegger', 'email' => 'arnold.schwarzenegger@gymfit.test'],
+            ['profile_id' => 4, 'name' => 'Sylvester Gardenzio Stallone', 'email' => 'sylvester.stallone@gymfit.test'],
+            ['profile_id' => 5, 'name' => 'Ma Dong-seok', 'email' => 'ma.dong-seok@gymfit.test'],
+        ];
     }
 
 }

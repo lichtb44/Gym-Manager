@@ -6,6 +6,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\MemberRegisterController;
+use App\Http\Controllers\NonMemberVisitController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\TrainerRatingController;
@@ -45,6 +46,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('dashboard/members', [MemberController::class, 'store']);
         Route::match(['delete', 'post'], 'dashboard/members/{id}', [MemberController::class, 'destroy']);
         Route::post('dashboard/members/{id}/approve-plan', [MemberController::class, 'approvePlanChange']);
+        Route::post('dashboard/non-member-visits', [NonMemberVisitController::class, 'store']);
+        Route::match(['delete', 'post'], 'dashboard/non-member-visits/{id}', [NonMemberVisitController::class, 'destroy']);
 
         Route::post('dashboard/plans', [PlanController::class, 'store']);
         Route::put('dashboard/plans/{id}', [PlanController::class, 'update']);

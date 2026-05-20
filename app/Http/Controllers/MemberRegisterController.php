@@ -38,7 +38,25 @@ class MemberRegisterController extends Controller
 
         $plan = Plan::findOrFail($validated['plan_id']);
 
-        $user = User::firstWhere('email', $validated['email']);
+        if (strtolower($plan->name) !== 'basic') {
+            return back()->withErrors([
+                'plan_id' => 'New members must start with the Basic plan first.',
+            ]);
+        }
+
+        $user = User::with('member')->firstWhere('email', $validated['email']);
+
+        if ($user?->member || Member::where('email', $validated['email'])->exists()) {
+            return back()->withErrors([
+                'email' => 'A membership already exists for this email.',
+            ]);
+        }
+
+        if ($user && $user->isAdmin()) {
+            return back()->withErrors([
+                'email' => 'This email is reserved for the website admin.',
+            ]);
+        }
 
         if (!$user) {
             $user = User::create([
@@ -57,6 +75,9 @@ class MemberRegisterController extends Controller
             'plan' => $plan->name,
             'status' => 'Active',
             'join_date' => now()->toDateString(),
+            'plan_started_at' => now(),
+            'pending_plan' => null,
+            'plan_status' => 'active',
         ]);
 
         Payment::create([

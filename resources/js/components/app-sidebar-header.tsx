@@ -82,7 +82,7 @@ export function AppSidebarHeader({
                           ? `${pendingPaymentConfirmation.member ?? 'Member'} has paid ${pendingPaymentConfirmation.amount ?? ''} through ${pendingPaymentConfirmation.method ?? 'payment'}. Confirm it in payments.`
                           : latestAdminPayment
                             ? `${latestAdminPayment.member ?? 'Member'} sent ${latestAdminPayment.amount ?? ''} through ${latestAdminPayment.method ?? 'payment'}.`
-                          : 'Review member payments and billing status.',
+                            : 'Review member payments and billing status.',
                       href: '/dashboard#payments',
                       icon: CreditCard,
                   },

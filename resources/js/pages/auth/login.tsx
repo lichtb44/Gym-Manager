@@ -36,7 +36,10 @@ export default function Login({
                     <>
                         <div className="grid gap-6">
                             <div className="grid gap-2">
-                                <Label htmlFor="email" className="text-slate-950">
+                                <Label
+                                    htmlFor="email"
+                                    className="text-slate-950"
+                                >
                                     Email Address
                                 </Label>
                                 <div className="relative">
@@ -58,7 +61,10 @@ export default function Login({
 
                             <div className="grid gap-2">
                                 <div className="flex items-center">
-                                    <Label htmlFor="password" className="text-slate-950">
+                                    <Label
+                                        htmlFor="password"
+                                        className="text-slate-950"
+                                    >
                                         Password
                                     </Label>
                                     {canResetPassword && (

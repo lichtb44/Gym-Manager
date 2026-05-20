@@ -182,7 +182,10 @@ export default function AdminPayments({
                 </section>
 
                 <section className="mt-6 grid gap-4 md:grid-cols-3">
-                    <Metric label="Total Collected" value={currency(totalPaid)} />
+                    <Metric
+                        label="Total Collected"
+                        value={currency(totalPaid)}
+                    />
                     <Metric label="Payment Records" value={payments.length} />
                     <Metric label="Needs Confirmation" value={pendingCount} />
                 </section>
@@ -442,7 +445,7 @@ function SelectField({
             <select
                 id={id}
                 value={value}
-                className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                className="mt-2 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm transition outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                 onChange={(event) => onChange(event.target.value)}
             >
                 {options.map((option) => (

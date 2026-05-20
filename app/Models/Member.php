@@ -13,6 +13,7 @@ class Member extends Model
         'name',
         'email',
         'phone',
+        'body_weight_kg',
         'plan',
         'plan_started_at',
         'pending_plan',
@@ -24,6 +25,7 @@ class Member extends Model
     protected $casts = [
         'join_date' => 'date',
         'plan_started_at' => 'datetime',
+        'body_weight_kg' => 'integer',
     ];
 
     public function user(): BelongsTo

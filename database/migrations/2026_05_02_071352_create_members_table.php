@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->string('phone')->nullable();
+            $table->unsignedSmallInteger('body_weight_kg')->nullable();
             $table->string('plan')->default('Basic');
             $table->timestamp('plan_started_at')->nullable();
             $table->string('pending_plan')->nullable();

@@ -93,19 +93,39 @@ export default function Payments({
         (sum, payment) => sum + (Number(payment.amount) || 0),
         0,
     );
+    const hasPaidCurrentPlan = payments.some(
+        (payment) =>
+            payment.status.toLowerCase() === 'paid' &&
+            payment.plan === member?.plan,
+    );
+    const payablePlanBalance =
+        Boolean(currentPlan) &&
+        member?.status !== 'Pending' &&
+        member?.plan !== 'No plan yet' &&
+        !hasPaidCurrentPlan
+            ? Number(currentPlan?.price) || 0
+            : 0;
+    const displayedOutstanding =
+        outstanding > 0 ? outstanding : payablePlanBalance;
     const latestPayment = payments[0];
+    const payablePayment = pendingPayments[0];
+    const checkoutPlan = payablePayment?.plan ?? member?.plan ?? 'membership';
+    const checkoutAmount = payablePayment?.amount ?? currentPlan?.price ?? 0;
     const canPay =
         Boolean(member) &&
-        Boolean(currentPlan) &&
+        (Boolean(payablePayment) || Boolean(currentPlan)) &&
         member?.status !== 'Pending' &&
         member?.plan !== 'No plan yet';
 
-    const submitPayment = (event: FormEvent<HTMLFormElement>) => {
+    const submitPayment = (
+        event: FormEvent<HTMLFormElement>,
+        paymentId?: number,
+    ) => {
         event.preventDefault();
 
         router.post(
             '/payments',
-            { method: 'Stripe' },
+            { method: 'Stripe', payment_id: paymentId ?? payablePayment?.id },
             {
                 preserveScroll: true,
             },
@@ -146,11 +166,13 @@ export default function Payments({
                     <MetricCard
                         icon={WalletCards}
                         title="Outstanding"
-                        value={currency(outstanding)}
+                        value={currency(displayedOutstanding)}
                         detail={
                             pendingPayments.length
                                 ? `${pendingPayments.length} pending records`
-                                : 'No pending balance'
+                                : displayedOutstanding > 0
+                                  ? 'Current plan is unpaid'
+                                  : 'No pending balance'
                         }
                     />
                     <MetricCard
@@ -239,12 +261,9 @@ export default function Payments({
                                                 Secure Stripe Checkout
                                             </h2>
                                             <p className="mt-1 text-sm text-slate-500">
-                                                Pay for{' '}
-                                                {member?.plan ?? 'membership'}{' '}
-                                                {currentPlan
-                                                    ? currency(
-                                                          currentPlan.price,
-                                                      )
+                                                Pay for {checkoutPlan}{' '}
+                                                {checkoutAmount
+                                                    ? currency(checkoutAmount)
                                                     : ''}
                                                 . Card details are collected by
                                                 Stripe, not stored by FitCore.
@@ -259,15 +278,15 @@ export default function Payments({
                                         />
                                         <InfoRow
                                             label="Plan"
-                                            value={member?.plan ?? 'N/A'}
+                                            value={checkoutPlan}
                                         />
                                         <InfoRow
                                             label="Amount"
                                             value={
-                                                currentPlan
+                                                checkoutAmount
                                                     ? String(
                                                           currency(
-                                                              currentPlan.price,
+                                                              checkoutAmount,
                                                           ),
                                                       )
                                                     : 'N/A'
@@ -348,6 +367,26 @@ export default function Payments({
                                                     <StatusBadge
                                                         status={payment.status}
                                                     />
+                                                    {payment.status.toLowerCase() !==
+                                                        'paid' && (
+                                                        <form
+                                                            className="mt-2"
+                                                            onSubmit={(event) =>
+                                                                submitPayment(
+                                                                    event,
+                                                                    payment.id,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Button
+                                                                type="submit"
+                                                                size="sm"
+                                                                className="h-8 bg-[#635bff] px-3 text-xs text-white hover:bg-[#5148d9]"
+                                                            >
+                                                                Pay Now
+                                                            </Button>
+                                                        </form>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))

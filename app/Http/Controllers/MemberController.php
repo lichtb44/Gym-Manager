@@ -3,8 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Member;
+use App\Models\Payment;
+use App\Models\Plan;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class MemberController extends Controller
 {
@@ -12,13 +18,23 @@ class MemberController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:members,email', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:30'],
             'plan' => ['required', 'string'],
             'status' => ['required', 'string'],
         ]);
 
-        $member = Member::create($validated + ['join_date' => now()]);
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make(Str::random(16)),
+            'role' => 'member',
+        ]);
+
+        Member::create($validated + [
+            'user_id' => $user->id,
+            'join_date' => now(),
+        ]);
 
         return redirect()->route('dashboard');
     }
@@ -130,9 +146,14 @@ class MemberController extends Controller
             'plan' => ['required', 'string', 'exists:plans,name'],
         ]);
 
+        $selectedPlan = Plan::where('name', $validated['plan'])->firstOrFail();
         $member = $user->member;
 
         if (!$member) {
+            if (strtolower($selectedPlan->name) !== 'basic') {
+                return redirect()->route('my-plan')->withErrors('New members must pay for the Basic plan first.');
+            }
+
             $member = Member::create([
                 'user_id' => $user->id,
                 'name' => $user->name,
@@ -151,6 +172,18 @@ class MemberController extends Controller
         $hasActivePlan = !empty($member->plan)
             && $member->plan !== 'No plan yet'
             && $member->status !== 'Pending';
+
+        if (!$hasActivePlan && strtolower($selectedPlan->name) !== 'basic') {
+            return redirect()->route('my-plan')->withErrors('New members must pay for the Basic plan first.');
+        }
+
+        if ($hasActivePlan && ($member->plan_status ?? null) === 'pending') {
+            return redirect()->route('my-plan')->withErrors('Your current plan change is still waiting for admin approval.');
+        }
+
+        if ($hasActivePlan && $member->plan === $selectedPlan->name) {
+            return redirect()->route('my-plan')->withErrors('You already have this plan.');
+        }
 
         $updates = $supportsPlanApproval && $hasActivePlan ? [
             'pending_plan' => $validated['plan'],
@@ -174,7 +207,30 @@ class MemberController extends Controller
 
         $member->update($updates);
 
-        return redirect()->route('dashboard');
+        if ($hasActivePlan) {
+            $currentPlan = Plan::where('name', $member->plan)->first();
+            $changeBilling = $this->planChangeBilling($member, $currentPlan, $selectedPlan);
+
+            Payment::create([
+                'member_id' => $member->id,
+                'plan' => $changeBilling['label'],
+                'amount' => $changeBilling['amount'],
+                'method' => 'Plan Change',
+                'status' => 'Pending Confirmation',
+                'payment_date' => now()->toDateString(),
+            ]);
+        } else {
+            Payment::create([
+                'member_id' => $member->id,
+                'plan' => $selectedPlan->name,
+                'amount' => $selectedPlan->price,
+                'method' => 'Initial Plan',
+                'status' => 'Pending Confirmation',
+                'payment_date' => now()->toDateString(),
+            ]);
+        }
+
+        return redirect()->route('my-plan');
     }
 
     public function approvePlanChange(Request $request, string $id)
@@ -229,5 +285,27 @@ class MemberController extends Controller
         $member->delete();
 
         return redirect()->route('dashboard');
+    }
+
+    /**
+     * @return array{label: string, amount: float}
+     */
+    private function planChangeBilling(Member $member, ?Plan $currentPlan, Plan $selectedPlan): array
+    {
+        $startedAt = $member->plan_started_at
+            ? Carbon::parse($member->plan_started_at)
+            : Carbon::parse($member->join_date ?? $member->created_at ?? now());
+        $withinGracePeriod = $startedAt->diffInDays(now()) < 3;
+        $selectedPrice = (float) $selectedPlan->price;
+        $currentPrice = (float) ($currentPlan?->price ?? 0);
+
+        return [
+            'label' => $withinGracePeriod
+                ? "Plan Change: {$selectedPlan->name}"
+                : "Plan Change: {$member->plan} + {$selectedPlan->name}",
+            'amount' => $withinGracePeriod
+                ? $selectedPrice
+                : $currentPrice + $selectedPrice,
+        ];
     }
 }

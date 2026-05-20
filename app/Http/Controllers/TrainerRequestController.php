@@ -5,10 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Member;
 use App\Models\Payment;
 use App\Models\TrainerRequest as TrainerRequestModel;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class TrainerRequestController extends Controller
 {
+    private const TRAINER_CAPACITY = 10;
+    private const TRAINER_IDS = [1, 2, 3, 4, 5];
+
     public function store(Request $request)
     {
         $user = auth()->user();
@@ -18,9 +22,13 @@ class TrainerRequestController extends Controller
         }
 
         $validated = $request->validate([
-            'trainer_id' => ['required', 'integer'],
+            'trainer_id' => ['required', 'integer', 'in:1,2,3,4,5'],
             'trainer_name' => ['required', 'string', 'max:255'],
+            'trainer_user_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
+        $trainerUser = User::where('role', 'trainer')
+            ->where('trainer_profile_id', $validated['trainer_id'])
+            ->first();
 
         $member = $user->member;
 
@@ -64,6 +72,12 @@ class TrainerRequestController extends Controller
                 ->withErrors('You already sent a request for this trainer.');
         }
 
+        if ($this->trainerIsFull($validated['trainer_id'])) {
+            return redirect()
+                ->route('trainers')
+                ->withErrors('That trainer is currently full. Choose another available trainer.');
+        }
+
         $hasApprovedTrainer = TrainerRequestModel::where('member_id', $member->id)
             ->where('status', 'Approved')
             ->exists();
@@ -83,6 +97,7 @@ class TrainerRequestController extends Controller
             'member_id' => $member->id,
             'requested_trainer_id' => $validated['trainer_id'],
             'requested_trainer' => $validated['trainer_name'],
+            'requested_trainer_user_id' => $trainerUser?->id ?? $validated['trainer_user_id'] ?? null,
             'status' => 'Pending',
         ]);
 
@@ -100,8 +115,9 @@ class TrainerRequestController extends Controller
         $trainerRequest = TrainerRequestModel::findOrFail($id);
         $validated = $request->validate([
             'action' => ['required', 'in:approve,reject'],
-            'assigned_trainer_id' => ['nullable', 'integer'],
+            'assigned_trainer_id' => ['nullable', 'integer', 'in:1,2,3,4,5'],
             'assigned_trainer' => ['nullable', 'string', 'max:255'],
+            'assigned_trainer_user_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
         if ($validated['action'] === 'reject') {
@@ -115,6 +131,11 @@ class TrainerRequestController extends Controller
 
         $assignedTrainerId = $validated['assigned_trainer_id'] ?? $trainerRequest->requested_trainer_id;
         $assignedTrainer = $validated['assigned_trainer'] ?? $trainerRequest->requested_trainer;
+        $assignedTrainerUserId = $validated['assigned_trainer_user_id']
+            ?? User::where('role', 'trainer')
+                ->where('trainer_profile_id', $assignedTrainerId)
+                ->value('id')
+            ?? $trainerRequest->requested_trainer_user_id;
 
         $alreadyAssigned = TrainerRequestModel::where('member_id', $trainerRequest->member_id)
             ->where('id', '!=', $trainerRequest->id)
@@ -126,13 +147,32 @@ class TrainerRequestController extends Controller
             return back()->withErrors('This member is already being trained by that trainer.');
         }
 
+        if ($this->trainerIsFull($assignedTrainerId, $trainerRequest->id)) {
+            return back()->withErrors('That trainer is currently full. Assign an available trainer instead.');
+        }
+
         $trainerRequest->update([
             'assigned_trainer_id' => $assignedTrainerId,
             'assigned_trainer' => $assignedTrainer,
+            'assigned_trainer_user_id' => $assignedTrainerUserId,
             'status' => 'Approved',
             'decided_at' => now(),
         ]);
 
         return back();
+    }
+
+    private function trainerIsFull(int $trainerId, ?int $excludingRequestId = null): bool
+    {
+        if (!in_array($trainerId, self::TRAINER_IDS, true)) {
+            return true;
+        }
+
+        $approvedCount = TrainerRequestModel::where('status', 'Approved')
+            ->whereRaw('COALESCE(assigned_trainer_id, requested_trainer_id) = ?', [$trainerId])
+            ->when($excludingRequestId, fn ($query) => $query->where('id', '!=', $excludingRequestId))
+            ->count();
+
+        return $approvedCount >= self::TRAINER_CAPACITY;
     }
 }

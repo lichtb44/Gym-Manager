@@ -15,6 +15,7 @@ export default function Profile({
 }: {
     member?: {
         phone?: string | null;
+        body_weight_kg?: number | null;
     };
     mustVerifyEmail: boolean;
     status?: string;
@@ -31,7 +32,7 @@ export default function Profile({
                 <Heading
                     variant="small"
                     title="Profile information"
-                    description="Update your name, email address, and phone number"
+                    description="Update your name, email address, phone number, and body weight"
                 />
 
                 <Form
@@ -98,6 +99,29 @@ export default function Profile({
                                 <InputError
                                     className="mt-2"
                                     message={errors.phone}
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="body_weight_kg">
+                                    Body weight (kg)
+                                </Label>
+
+                                <Input
+                                    id="body_weight_kg"
+                                    type="number"
+                                    min={30}
+                                    max={250}
+                                    className="mt-1 block w-full"
+                                    defaultValue={member?.body_weight_kg ?? ''}
+                                    name="body_weight_kg"
+                                    inputMode="numeric"
+                                    placeholder="Body weight"
+                                />
+
+                                <InputError
+                                    className="mt-2"
+                                    message={errors.body_weight_kg}
                                 />
                             </div>
 

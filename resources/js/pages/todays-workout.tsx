@@ -8,15 +8,20 @@ import {
     Save,
     Trash2,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+    recommendedExerciseLoad,
+    recommendedReps,
+} from '@/lib/workout-recommendations';
 
 interface Member {
     id: number;
     name: string;
     plan: string;
+    body_weight_kg?: number | null;
 }
 
 interface WorkoutExercise {
@@ -62,6 +67,16 @@ const defaultExercise = (): WorkoutExercise => ({
 const storageKey = (member?: Member) =>
     `gymfit-daily-workout-${member?.id ?? 'guest'}`;
 
+const savedWorkoutFor = (member?: Member): SavedWorkout | null => {
+    const savedWorkout = window.localStorage.getItem(storageKey(member));
+
+    if (!savedWorkout) {
+        return null;
+    }
+
+    return JSON.parse(savedWorkout) as SavedWorkout;
+};
+
 const basicWorkoutOptions = [
     'Barbell Squat',
     'Bench Press',
@@ -86,32 +101,24 @@ const basicWorkoutOptions = [
 ];
 
 export default function TodaysWorkout({ member }: TodaysWorkoutProps) {
-    const [title, setTitle] = useState("Today's Workout");
-    const [focus, setFocus] = useState('Strength');
-    const [durationMin, setDurationMin] = useState(45);
-    const [exercises, setExercises] = useState<WorkoutExercise[]>([
-        defaultExercise(),
-    ]);
+    const [initialWorkout] = useState(() => savedWorkoutFor(member));
+    const [title, setTitle] = useState(
+        initialWorkout?.title || "Today's Workout",
+    );
+    const [focus, setFocus] = useState(initialWorkout?.focus || 'Strength');
+    const [durationMin, setDurationMin] = useState(
+        initialWorkout?.durationMin || 45,
+    );
+    const [exercises, setExercises] = useState<WorkoutExercise[]>(() =>
+        initialWorkout?.exercises?.length
+            ? initialWorkout.exercises
+            : [defaultExercise()],
+    );
     const [saved, setSaved] = useState(false);
 
-    useEffect(() => {
-        const savedWorkout = window.localStorage.getItem(storageKey(member));
-
-        if (!savedWorkout) {
-            return;
-        }
-
-        const parsed = JSON.parse(savedWorkout) as SavedWorkout;
-        setTitle(parsed.title || "Today's Workout");
-        setFocus(parsed.focus || 'Strength');
-        setDurationMin(parsed.durationMin || 45);
-        setExercises(
-            parsed.exercises?.length ? parsed.exercises : [defaultExercise()],
-        );
-    }, [member]);
-
-    const filledExercises = exercises.filter((exercise) =>
-        exercise.name.trim(),
+    const filledExercises = useMemo(
+        () => exercises.filter((exercise) => exercise.name.trim()),
+        [exercises],
     );
     const totalSets = filledExercises.reduce(
         (sum, exercise) => sum + exercise.sets,
@@ -136,9 +143,31 @@ export default function TodaysWorkout({ member }: TodaysWorkoutProps) {
         value: string | number,
     ) => {
         setExercises((current) =>
-            current.map((exercise) =>
-                exercise.id === id ? { ...exercise, [field]: value } : exercise,
-            ),
+            current.map((exercise) => {
+                if (exercise.id !== id) {
+                    return exercise;
+                }
+
+                if (field === 'name' && typeof value === 'string') {
+                    const recommendation = recommendedExerciseLoad(
+                        value,
+                        member?.body_weight_kg,
+                    );
+
+                    return {
+                        ...exercise,
+                        name: value,
+                        reps: recommendedReps(
+                            exercise.reps,
+                            value,
+                            member?.body_weight_kg,
+                        ),
+                        weightKg: recommendation?.weightKg ?? exercise.weightKg,
+                    };
+                }
+
+                return { ...exercise, [field]: value };
+            }),
         );
     };
 
@@ -188,7 +217,9 @@ export default function TodaysWorkout({ member }: TodaysWorkoutProps) {
                                     </p>
                                 </div>
                                 <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
-                                    {member?.plan ?? 'Member'}
+                                    {member?.body_weight_kg
+                                        ? `${member.body_weight_kg} kg`
+                                        : (member?.plan ?? 'Member')}
                                 </span>
                             </CardHeader>
                             <CardContent className="grid gap-4">
@@ -271,7 +302,7 @@ export default function TodaysWorkout({ member }: TodaysWorkoutProps) {
                                                             event.target.value,
                                                         )
                                                     }
-                                                    className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-950 shadow-xs outline-none transition focus:border-red-200 focus:ring-2 focus:ring-red-100"
+                                                    className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-950 shadow-xs transition outline-none focus:border-red-200 focus:ring-2 focus:ring-red-100"
                                                 >
                                                     <option value="">
                                                         Choose exercise...
@@ -416,9 +447,8 @@ export default function TodaysWorkout({ member }: TodaysWorkoutProps) {
                         </Card>
                         <Card className="rounded-lg border-blue-100 bg-blue-50 shadow-sm">
                             <CardContent className="pt-5 text-sm text-blue-900">
-                                <span className="font-semibold">Tip:</span>{' '}
-                                Warm up before your workout and stretch
-                                afterward.
+                                <span className="font-semibold">Tip:</span> Warm
+                                up before your workout and stretch afterward.
                             </CardContent>
                         </Card>
                         <Card className="rounded-lg border-slate-200 bg-white shadow-sm">

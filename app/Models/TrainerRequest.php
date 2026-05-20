@@ -11,8 +11,10 @@ class TrainerRequest extends Model
         'member_id',
         'requested_trainer_id',
         'requested_trainer',
+        'requested_trainer_user_id',
         'assigned_trainer_id',
         'assigned_trainer',
+        'assigned_trainer_user_id',
         'status',
         'decided_at',
     ];
@@ -24,5 +26,15 @@ class TrainerRequest extends Model
     public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class);
+    }
+
+    public function requestedTrainer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_trainer_user_id');
+    }
+
+    public function assignedTrainer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_trainer_user_id');
     }
 }

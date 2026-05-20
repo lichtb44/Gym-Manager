@@ -52,6 +52,7 @@ class ProfileController extends Controller
                     'name' => $validated['name'],
                     'email' => $validated['email'],
                     'phone' => $validated['phone'] ?? null,
+                    'body_weight_kg' => $validated['body_weight_kg'] ?? null,
                 ]
             );
         }

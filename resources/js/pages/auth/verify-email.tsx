@@ -30,7 +30,9 @@ export default function VerifyEmail({ status }: { status?: string }) {
                             href={logout()}
                             method="post"
                             onBefore={() =>
-                                window.confirm('Are you sure you want to log out?')
+                                window.confirm(
+                                    'Are you sure you want to log out?',
+                                )
                             }
                             className="mx-auto block text-sm"
                         >

@@ -5,6 +5,7 @@ import {
     Search,
     ShieldCheck,
     Star,
+    Target,
     Users,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -27,6 +28,9 @@ interface Trainer {
     specialty: string;
     experience: number;
     rating: number;
+    userId?: number | null;
+    email?: string | null;
+    role?: 'trainer';
     activeMembers: number;
     filledSlots: number;
     capacity: number;
@@ -36,15 +40,21 @@ interface Trainer {
     description: string;
     focusAreas: string[];
     coachingStyle: string;
+    recommendation: string;
+    idealFor: string[];
 }
 
 interface TrainerRequest {
     id: number;
     requested_trainer_id: number;
+    requested_trainer_user_id?: number | null;
     assigned_trainer_id?: number | null;
+    assigned_trainer_user_id?: number | null;
     user: string;
     requested_trainer: string;
     assigned_trainer?: string | null;
+    trainer_user?: string | null;
+    trainer_email?: string | null;
     date: string;
     status: string;
     extra_fee_required?: boolean;
@@ -69,6 +79,9 @@ const defaultTrainers: Trainer[] = [
             'A high-energy strength coach focused on consistency, discipline, and measurable progress. John builds programs around compound lifts, safe form, and weekly performance targets.',
         focusAreas: ['Strength cycles', 'Power training', 'Beginner form work'],
         coachingStyle: 'Motivational, structured, and goal-driven.',
+        recommendation:
+            'Best for members who want to get stronger, learn safe lifting form, and stay accountable with clear weekly goals.',
+        idealFor: ['Beginners', 'Strength gains', 'Consistent routines'],
     },
     {
         id: 2,
@@ -90,6 +103,9 @@ const defaultTrainers: Trainer[] = [
             'Mobility and stamina',
         ],
         coachingStyle: 'Intense, encouraging, and performance-focused.',
+        recommendation:
+            'Best for members who want athletic workouts, better mobility, and full-body conditioning that carries into daily life.',
+        idealFor: ['Weight loss', 'Stamina', 'Functional fitness'],
     },
     {
         id: 3,
@@ -107,6 +123,9 @@ const defaultTrainers: Trainer[] = [
             'A bodybuilding coach for members who want muscle growth, symmetry, and stage-ready discipline. Arnold emphasizes progressive overload, nutrition habits, and focused hypertrophy routines.',
         focusAreas: ['Bodybuilding', 'Hypertrophy', 'Nutrition discipline'],
         coachingStyle: 'Classic, precise, and results-oriented.',
+        recommendation:
+            'Best for members focused on muscle size, body shape, nutrition discipline, and detailed progress tracking.',
+        idealFor: ['Muscle growth', 'Physique goals', 'Advanced training'],
     },
     {
         id: 4,
@@ -124,6 +143,9 @@ const defaultTrainers: Trainer[] = [
             'A boxing and conditioning coach built for members who want grit, coordination, and fight-ready cardio. Sylvester develops footwork, punching mechanics, and resilient conditioning.',
         focusAreas: ['Boxing fundamentals', 'Footwork', 'Fight conditioning'],
         coachingStyle: 'Tough, focused, and confidence-building.',
+        recommendation:
+            'Best for members who want boxing skills, sharper coordination, stronger cardio, and a tougher mindset.',
+        idealFor: ['Boxing basics', 'Cardio', 'Confidence'],
     },
     {
         id: 5,
@@ -141,6 +163,9 @@ const defaultTrainers: Trainer[] = [
             'A powerful boxing and functional strength coach who specializes in heavy conditioning and practical movement. Ma Dong-seok helps members build strength that feels useful outside the gym.',
         focusAreas: ['Boxing power', 'Functional strength', 'Core stability'],
         coachingStyle: 'Calm, direct, and strength-first.',
+        recommendation:
+            'Best for members who want practical strength, powerful boxing drills, core control, and steady coaching.',
+        idealFor: ['Power training', 'Core strength', 'Practical fitness'],
     },
 ];
 
@@ -211,7 +236,15 @@ export default function AdminTrainers({
         return trainers.filter((trainer) => {
             const matchesSearch =
                 trainer.name.toLowerCase().includes(search.toLowerCase()) ||
-                trainer.specialty.toLowerCase().includes(search.toLowerCase());
+                trainer.specialty
+                    .toLowerCase()
+                    .includes(search.toLowerCase()) ||
+                trainer.recommendation
+                    .toLowerCase()
+                    .includes(search.toLowerCase()) ||
+                trainer.idealFor.some((goal) =>
+                    goal.toLowerCase().includes(search.toLowerCase()),
+                );
             const isFull = trainer.filledSlots >= trainer.capacity;
             const matchesFilter =
                 activeFilter === 'Available'
@@ -227,8 +260,7 @@ export default function AdminTrainers({
     const pendingCount =
         trainerRequests.filter(
             (request) => request.status.toLowerCase() === 'pending',
-        ).length +
-        0;
+        ).length + 0;
 
     const availableTrainers = trainers.filter(
         (trainer) => trainer.filledSlots < trainer.capacity,
@@ -242,6 +274,7 @@ export default function AdminTrainers({
 
         if (mustUpgradeForTrainer) {
             router.visit('/my-plan');
+
             return;
         }
 
@@ -254,6 +287,7 @@ export default function AdminTrainers({
             {
                 trainer_id: selectedTrainer.id,
                 trainer_name: selectedTrainer.name,
+                trainer_user_id: selectedTrainer.userId,
             },
             {
                 preserveScroll: true,
@@ -276,6 +310,7 @@ export default function AdminTrainers({
                 action,
                 assigned_trainer_id: selectedTrainer?.id,
                 assigned_trainer: selectedTrainer?.name,
+                assigned_trainer_user_id: selectedTrainer?.userId,
             },
             {
                 preserveScroll: true,
@@ -289,6 +324,7 @@ export default function AdminTrainers({
         }
 
         setIsSubmittingRating(true);
+
         try {
             const response = await fetch(
                 `/trainers/${profileTrainer.id}/rate`,
@@ -296,16 +332,17 @@ export default function AdminTrainers({
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document
-                            .querySelector('meta[name="csrf-token"]')
-                            ?.getAttribute('content') || '',
+                        'X-CSRF-TOKEN':
+                            document
+                                .querySelector('meta[name="csrf-token"]')
+                                ?.getAttribute('content') || '',
                     },
                     body: JSON.stringify({
                         trainer_id: profileTrainer.id,
                         rating: userRating,
                         review: userReview,
                     }),
-                }
+                },
             );
 
             if (response.ok) {
@@ -324,6 +361,7 @@ export default function AdminTrainers({
 
     const handleProfileTrainerChange = (trainer: Trainer | null) => {
         setProfileTrainer(trainer);
+
         if (trainer === null) {
             setUserRating(null);
             setUserReview('');
@@ -412,10 +450,23 @@ export default function AdminTrainers({
                                             </span>{' '}
                                             on {request.date}
                                         </p>
+                                        {(request.trainer_user ||
+                                            request.trainer_email) && (
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                Trainer user:{' '}
+                                                <span className="font-medium text-slate-800">
+                                                    {request.trainer_user ??
+                                                        request.requested_trainer}
+                                                </span>
+                                                {request.trainer_email
+                                                    ? ` (${request.trainer_email})`
+                                                    : ''}
+                                            </p>
+                                        )}
                                         {request.extra_fee_required && (
                                             <p className="mt-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
-                                                Additional trainer add-on:
-                                                ${request.extra_fee_amount ?? 50}
+                                                Additional trainer add-on: $
+                                                {request.extra_fee_amount ?? 50}
                                             </p>
                                         )}
                                         {request.requested_trainer_full && (
@@ -448,9 +499,7 @@ export default function AdminTrainers({
                                                     {availableTrainers.map(
                                                         (trainer) => (
                                                             <option
-                                                                key={
-                                                                    trainer.id
-                                                                }
+                                                                key={trainer.id}
                                                                 value={
                                                                     trainer.id
                                                                 }
@@ -514,10 +563,12 @@ export default function AdminTrainers({
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p className="text-sm font-semibold text-amber-900">
-                                    Trainer selection is only available on Premium.
+                                    Trainer selection is only available on
+                                    Premium.
                                 </p>
                                 <p className="mt-1 text-sm text-amber-800">
-                                    Change your plan to Premium to request a trainer.
+                                    Change your plan to Premium to request a
+                                    trainer.
                                 </p>
                             </div>
                             <Button
@@ -582,8 +633,8 @@ export default function AdminTrainers({
                                 mustUpgradeForTrainer
                                     ? router.visit('/my-plan')
                                     : isAdmin
-                                    ? setProfileTrainer(trainer)
-                                    : setSelectedTrainer(trainer)
+                                      ? setProfileTrainer(trainer)
+                                      : setSelectedTrainer(trainer)
                             }
                             isAdmin={isAdmin}
                             canChooseTrainer={canChooseTrainer}
@@ -666,7 +717,7 @@ export default function AdminTrainers({
                         handleProfileTrainerChange(open ? profileTrainer : null)
                     }
                 >
-                    <DialogContent className="overflow-hidden rounded-lg p-0 sm:max-w-2xl max-h-[90vh] flex flex-col">
+                    <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden rounded-lg p-0 sm:max-w-2xl">
                         {profileTrainer && (
                             <>
                                 <div className="relative h-56 flex-shrink-0">
@@ -695,7 +746,7 @@ export default function AdminTrainers({
                                         }}
                                     />
                                 </div>
-                                <div className="px-6 pt-16 pb-6 overflow-y-auto flex-1">
+                                <div className="flex-1 overflow-y-auto px-6 pt-16 pb-6">
                                     <DialogHeader>
                                         <DialogTitle className="text-2xl">
                                             {profileTrainer.name}
@@ -724,6 +775,17 @@ export default function AdminTrainers({
                                             }/${profileTrainer.capacity}`}
                                         />
                                     </div>
+
+                                    {profileTrainer.email && (
+                                        <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                                            <p className="text-sm font-semibold text-slate-950">
+                                                Trainer User Account
+                                            </p>
+                                            <p className="mt-1 text-sm text-slate-600">
+                                                {profileTrainer.email}
+                                            </p>
+                                        </div>
+                                    )}
 
                                     <div className="mt-5">
                                         <p className="text-sm font-semibold text-slate-950">
@@ -761,18 +823,40 @@ export default function AdminTrainers({
                                         </p>
                                     </div>
 
+                                    <div className="mt-5 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3">
+                                        <p className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                                            <Target className="size-4" />
+                                            Recommended For
+                                        </p>
+                                        <p className="mt-2 text-sm leading-6 text-emerald-800">
+                                            {profileTrainer.recommendation}
+                                        </p>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {profileTrainer.idealFor.map(
+                                                (goal) => (
+                                                    <Badge
+                                                        key={goal}
+                                                        className="border-emerald-200 bg-white text-emerald-700"
+                                                    >
+                                                        {goal}
+                                                    </Badge>
+                                                ),
+                                            )}
+                                        </div>
+                                    </div>
+
                                     <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                                        <p className="text-sm font-semibold text-slate-950 mb-3">
+                                        <p className="mb-3 text-sm font-semibold text-slate-950">
                                             Rate This Trainer
                                         </p>
-                                        <div className="flex gap-2 mb-3">
+                                        <div className="mb-3 flex gap-2">
                                             {[1, 2, 3, 4, 5].map((star) => (
                                                 <button
                                                     key={star}
                                                     onClick={() =>
                                                         setUserRating(star)
                                                     }
-                                                    className="focus:outline-none transition-transform hover:scale-110"
+                                                    className="transition-transform hover:scale-110 focus:outline-none"
                                                 >
                                                     <Star
                                                         className={`size-6 ${
@@ -791,16 +875,18 @@ export default function AdminTrainers({
                                                     value={userReview}
                                                     onChange={(e) =>
                                                         setUserReview(
-                                                            e.target.value
+                                                            e.target.value,
                                                         )
                                                     }
                                                     placeholder="Share your experience with this trainer (optional)"
-                                                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                                                    className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none"
                                                     rows={3}
                                                 />
                                                 <Button
                                                     type="button"
-                                                    disabled={isSubmittingRating}
+                                                    disabled={
+                                                        isSubmittingRating
+                                                    }
                                                     className="mt-3 w-full bg-red-500 text-white hover:bg-red-600 disabled:bg-slate-300"
                                                     onClick={submitRating}
                                                 >
@@ -808,6 +894,12 @@ export default function AdminTrainers({
                                                         ? 'Submitting...'
                                                         : 'Submit Rating'}
                                                 </Button>
+                                                {ratingSubmitted && (
+                                                    <p className="mt-2 text-sm font-medium text-emerald-700">
+                                                        Rating submitted for
+                                                        admin review.
+                                                    </p>
+                                                )}
                                             </>
                                         )}
                                     </div>
@@ -831,15 +923,22 @@ export default function AdminTrainers({
                                             onClick={() => {
                                                 if (mustUpgradeForTrainer) {
                                                     router.visit('/my-plan');
+
                                                     return;
                                                 }
-                                                if (profileTrainerRelationship) {
+
+                                                if (
+                                                    profileTrainerRelationship
+                                                ) {
                                                     return;
                                                 }
+
                                                 setSelectedTrainer(
                                                     profileTrainer,
                                                 );
-                                                handleProfileTrainerChange(null);
+                                                handleProfileTrainerChange(
+                                                    null,
+                                                );
                                             }}
                                         >
                                             {profileTrainerRelationship?.status.toLowerCase() ===
@@ -909,13 +1008,13 @@ function TrainerCard({
                 </div>
 
                 {/* Avatar - 96px × 96px, positioned absolute at bottom: -48px, left: 24px */}
-                <div className="absolute -bottom-12 left-6 grid size-24 place-items-center rounded-full border-4 border-white bg-slate-950 text-lg font-semibold text-white shadow-md z-10">
+                <div className="absolute -bottom-12 left-6 z-10 grid size-24 place-items-center rounded-full border-4 border-white bg-slate-950 text-lg font-semibold text-white shadow-md">
                     {initials(trainer.name)}
                 </div>
                 <img
                     src={trainer.photo}
                     alt={trainer.name}
-                    className="absolute -bottom-12 left-6 size-24 rounded-full border-4 border-white object-cover shadow-md z-20"
+                    className="absolute -bottom-12 left-6 z-20 size-24 rounded-full border-4 border-white object-cover shadow-md"
                     onError={(event) => {
                         event.currentTarget.style.display = 'none';
                     }}
@@ -923,7 +1022,7 @@ function TrainerCard({
             </div>
 
             {/* Content Section - Top padding accommodates avatar overlap (64px covers 48px bottom overlap + 16px spacing) */}
-            <CardContent className="relative px-5 pb-5 pt-16">
+            <CardContent className="relative px-5 pt-16 pb-5">
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                         <h2 className="truncate text-xl font-semibold text-slate-950">
@@ -932,6 +1031,11 @@ function TrainerCard({
                         <p className="mt-1 text-sm font-medium text-red-500">
                             {trainer.specialty}
                         </p>
+                        {trainer.email && (
+                            <p className="mt-1 truncate text-xs text-slate-500">
+                                User: {trainer.email}
+                            </p>
+                        )}
                     </div>
                     <div className="flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-700">
                         <Star className="size-4 fill-amber-400 text-amber-400" />
@@ -955,6 +1059,26 @@ function TrainerCard({
                         label="Slots"
                         value={`${remainingSlots}/${trainer.capacity}`}
                     />
+                </div>
+
+                <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-3">
+                    <p className="flex items-center gap-2 text-xs font-semibold tracking-wide text-emerald-800 uppercase">
+                        <Target className="size-4" />
+                        Best for
+                    </p>
+                    <p className="mt-2 text-sm leading-5 text-emerald-900">
+                        {trainer.recommendation}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {trainer.idealFor.map((goal) => (
+                            <Badge
+                                key={goal}
+                                className="border-emerald-200 bg-white text-emerald-700"
+                            >
+                                {goal}
+                            </Badge>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="mt-5">
@@ -1018,13 +1142,13 @@ function TrainerCard({
                             ? 'View Details'
                             : !canChooseTrainer
                               ? 'Upgrade to Premium'
-                            : requestStatus?.toLowerCase() === 'approved'
-                              ? 'Already Your Trainer'
-                              : requestStatus
-                                ? 'Request Pending'
-                              : isFull
-                                ? 'Request Anyway'
-                                : 'Choose Trainer'}
+                              : requestStatus?.toLowerCase() === 'approved'
+                                ? 'Already Your Trainer'
+                                : requestStatus
+                                  ? 'Request Pending'
+                                  : isFull
+                                    ? 'Request Anyway'
+                                    : 'Choose Trainer'}
                     </Button>
                 </div>
             </CardContent>

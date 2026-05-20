@@ -20,6 +20,7 @@ class ProfileUpdateRequest extends FormRequest
         return [
             ...$this->profileRules($this->user()->id),
             'phone' => ['nullable', 'string', 'max:30'],
+            'body_weight_kg' => ['nullable', 'integer', 'min:30', 'max:250'],
         ];
     }
 }

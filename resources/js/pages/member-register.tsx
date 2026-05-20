@@ -24,12 +24,13 @@ export default function MemberRegister({ plans }: { plans: Plan[] }) {
         phone: '',
     });
 
-    const handleInputChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData((current) => ({
-            ...current,
-            [field]: event.target.value,
-        }));
-    };
+    const handleInputChange =
+        (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+            setFormData((current) => ({
+                ...current,
+                [field]: event.target.value,
+            }));
+        };
 
     const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
         if (!selectedPlan) {
@@ -47,8 +48,13 @@ export default function MemberRegister({ plans }: { plans: Plan[] }) {
 
                 <div className="relative mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
                     <div className="mb-12 text-center text-white">
-                        <h1 className="mb-4 text-5xl font-bold tracking-tight">Join FitCore Gym</h1>
-                        <p className="text-xl opacity-90">Select a membership plan and start your fitness journey today</p>
+                        <h1 className="mb-4 text-5xl font-bold tracking-tight">
+                            Join FitCore Gym
+                        </h1>
+                        <p className="text-xl opacity-90">
+                            New members start with Basic, then can change plans
+                            from their account
+                        </p>
                     </div>
 
                     {flash?.success && (
@@ -58,54 +64,100 @@ export default function MemberRegister({ plans }: { plans: Plan[] }) {
                     )}
 
                     <div className="grid gap-6 md:grid-cols-3">
-                        {plans.map((plan) => (
-                            <Card
-                                key={plan.id}
-                                className={`relative overflow-hidden transition ${selectedPlan?.id === plan.id ? 'ring-2 ring-indigo-600' : ''}`}
-                            >
-                                <CardHeader>
-                                    <CardTitle className="flex items-center justify-between">
-                                        <span>{plan.name}</span>
-                                        <span className="text-sm font-normal text-slate-500">{plan.duration}</span>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="mb-4">
-                                        <div className="mb-4 text-3xl font-bold text-indigo-600">${plan.price}</div>
-                                        <p className="mb-6 text-sm text-slate-600">{plan.description}</p>
-                                    </div>
-                                    <Button
-                                        onClick={() => setSelectedPlan(plan)}
-                                        className={`w-full ${selectedPlan?.id === plan.id ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`}
+                        {plans.map((plan) =>
+                            (() => {
+                                const requiresBasicFirst =
+                                    plan.name.toLowerCase() !== 'basic';
+
+                                return (
+                                    <Card
+                                        key={plan.id}
+                                        className={`relative overflow-hidden transition ${selectedPlan?.id === plan.id ? 'ring-2 ring-indigo-600' : ''} ${requiresBasicFirst ? 'opacity-70' : ''}`}
                                     >
-                                        {selectedPlan?.id === plan.id ? 'Selected' : 'Select Plan'}
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        ))}
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center justify-between">
+                                                <span>{plan.name}</span>
+                                                <span className="text-sm font-normal text-slate-500">
+                                                    {plan.duration}
+                                                </span>
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="mb-4">
+                                                <div className="mb-4 text-3xl font-bold text-indigo-600">
+                                                    ${plan.price}
+                                                </div>
+                                                <p className="mb-6 text-sm text-slate-600">
+                                                    {plan.description}
+                                                </p>
+                                            </div>
+                                            {requiresBasicFirst && (
+                                                <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+                                                    Available after Basic
+                                                    membership starts
+                                                </p>
+                                            )}
+                                            <Button
+                                                disabled={requiresBasicFirst}
+                                                onClick={() =>
+                                                    setSelectedPlan(plan)
+                                                }
+                                                className={`w-full ${selectedPlan?.id === plan.id ? 'bg-indigo-600 text-white hover:bg-indigo-700' : requiresBasicFirst ? 'bg-slate-200 text-slate-500 hover:bg-slate-200' : 'bg-slate-100 text-slate-900 hover:bg-slate-200'}`}
+                                            >
+                                                {selectedPlan?.id === plan.id
+                                                    ? 'Selected'
+                                                    : requiresBasicFirst
+                                                      ? 'Basic Required First'
+                                                      : 'Select Basic'}
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })(),
+                        )}
                     </div>
 
                     {selectedPlan && (
                         <Card className="mt-12">
                             <CardHeader>
-                                <CardTitle>Complete Your Registration</CardTitle>
+                                <CardTitle>
+                                    Complete Your Registration
+                                </CardTitle>
                                 <p className="mt-2 text-sm text-slate-600">
-                                    Register as a new member with the {selectedPlan.name} plan
+                                    Register as a new member with the{' '}
+                                    {selectedPlan.name} plan
                                 </p>
                             </CardHeader>
                             <CardContent>
-                                <Form method="post" action="/join" onSubmit={handleRegister} className="space-y-6">
-                                    <input type="hidden" name="plan_id" value={selectedPlan.id} />
-                                    <input type="hidden" name="method" value="Credit Card" />
+                                <Form
+                                    method="post"
+                                    action="/join"
+                                    onSubmit={handleRegister}
+                                    className="space-y-6"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="plan_id"
+                                        value={selectedPlan.id}
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="method"
+                                        value="Credit Card"
+                                    />
 
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div>
-                                            <Label htmlFor="name">Full Name</Label>
+                                            <Label htmlFor="name">
+                                                Full Name
+                                            </Label>
                                             <Input
                                                 id="name"
                                                 name="name"
                                                 value={formData.name}
-                                                onChange={handleInputChange('name')}
+                                                onChange={handleInputChange(
+                                                    'name',
+                                                )}
                                                 placeholder="John Doe"
                                                 required
                                             />
@@ -117,31 +169,45 @@ export default function MemberRegister({ plans }: { plans: Plan[] }) {
                                                 name="email"
                                                 type="email"
                                                 value={formData.email}
-                                                onChange={handleInputChange('email')}
+                                                onChange={handleInputChange(
+                                                    'email',
+                                                )}
                                                 placeholder="john@example.com"
                                                 required
                                             />
                                         </div>
                                         <div className="sm:col-span-2">
-                                            <Label htmlFor="phone">Phone Number</Label>
+                                            <Label htmlFor="phone">
+                                                Phone Number
+                                            </Label>
                                             <Input
                                                 id="phone"
                                                 name="phone"
                                                 value={formData.phone}
-                                                onChange={handleInputChange('phone')}
+                                                onChange={handleInputChange(
+                                                    'phone',
+                                                )}
                                                 placeholder="+1 (555) 123-4567"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                                        <h3 className="mb-2 font-semibold text-slate-900">Order Summary</h3>
+                                        <h3 className="mb-2 font-semibold text-slate-900">
+                                            Order Summary
+                                        </h3>
                                         <div className="flex justify-between py-2">
-                                            <span className="text-slate-600">Plan:</span>
-                                            <span className="font-semibold text-slate-900">{selectedPlan.name}</span>
+                                            <span className="text-slate-600">
+                                                Plan:
+                                            </span>
+                                            <span className="font-semibold text-slate-900">
+                                                {selectedPlan.name}
+                                            </span>
                                         </div>
                                         <div className="flex justify-between border-t border-slate-200 py-2 pt-4">
-                                            <span className="font-semibold text-slate-900">Total:</span>
+                                            <span className="font-semibold text-slate-900">
+                                                Total:
+                                            </span>
                                             <span className="text-lg font-bold text-indigo-600">
                                                 ${selectedPlan.price.toFixed(2)}
                                             </span>
@@ -152,7 +218,9 @@ export default function MemberRegister({ plans }: { plans: Plan[] }) {
                                         <Button
                                             variant="outline"
                                             type="button"
-                                            onClick={() => setSelectedPlan(null)}
+                                            onClick={() =>
+                                                setSelectedPlan(null)
+                                            }
                                         >
                                             Back to Plans
                                         </Button>

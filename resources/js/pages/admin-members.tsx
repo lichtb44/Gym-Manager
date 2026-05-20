@@ -1,6 +1,18 @@
-import { Head } from '@inertiajs/react';
-import { CalendarDays, Mail, Phone, UserCheck, Users } from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import {
+    CalendarDays,
+    ClipboardList,
+    Mail,
+    Phone,
+    Trash2,
+    UserCheck,
+    Users,
+} from 'lucide-react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 interface WebsiteUser {
     id: number;
@@ -15,6 +27,16 @@ interface WebsiteUser {
     status: string;
     joined_at?: string | null;
     created_at?: string | null;
+}
+
+interface NonMemberVisit {
+    id: number;
+    name: string;
+    phone?: string | null;
+    purpose: string;
+    logged_by?: string | null;
+    notes?: string | null;
+    entered_at: string;
 }
 
 const initials = (name = 'User') =>
@@ -41,9 +63,17 @@ const statusClass = (status: string) => {
 
 export default function AdminMembers({
     users = [],
+    nonMemberVisits = [],
 }: {
     users?: WebsiteUser[];
+    nonMemberVisits?: NonMemberVisit[];
 }) {
+    const [visitForm, setVisitForm] = useState({
+        name: '',
+        phone: '',
+        purpose: 'Walk-in workout',
+        notes: '',
+    });
     const activeUsers = users.filter(
         (user) => user.status.toLowerCase() === 'active',
     ).length;
@@ -53,6 +83,26 @@ export default function AdminMembers({
     const pendingPlanUsers = users.filter(
         (user) => user.plan_status === 'pending',
     ).length;
+    const logVisit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        router.post('/dashboard/non-member-visits', visitForm, {
+            preserveScroll: true,
+            onSuccess: () =>
+                setVisitForm({
+                    name: '',
+                    phone: '',
+                    purpose: 'Walk-in workout',
+                    notes: '',
+                }),
+        });
+    };
+
+    const removeVisit = (id: number) => {
+        router.delete(`/dashboard/non-member-visits/${id}`, {
+            preserveScroll: true,
+        });
+    };
 
     return (
         <>
@@ -81,6 +131,149 @@ export default function AdminMembers({
                     <Metric label="No Plan Yet" value={noPlanUsers} />
                     <Metric label="Plan Requests" value={pendingPlanUsers} />
                 </section>
+
+                <Card className="mt-6 rounded-lg border-slate-200 bg-white shadow-sm">
+                    <CardHeader className="flex flex-row items-center justify-between gap-4">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <ClipboardList className="size-5 text-blue-600" />
+                            Non-Member Logbook
+                        </CardTitle>
+                        <span className="text-sm text-slate-500">
+                            {nonMemberVisits.length} recent entries
+                        </span>
+                    </CardHeader>
+                    <CardContent>
+                        <form
+                            onSubmit={logVisit}
+                            className="grid gap-3 rounded-lg border border-slate-100 bg-slate-50 p-4 lg:grid-cols-[1fr_160px_190px_1fr_auto]"
+                        >
+                            <Input
+                                value={visitForm.name}
+                                onChange={(event) =>
+                                    setVisitForm((current) => ({
+                                        ...current,
+                                        name: event.target.value,
+                                    }))
+                                }
+                                placeholder="Visitor name"
+                                required
+                            />
+                            <Input
+                                value={visitForm.phone}
+                                onChange={(event) =>
+                                    setVisitForm((current) => ({
+                                        ...current,
+                                        phone: event.target.value,
+                                    }))
+                                }
+                                placeholder="Phone"
+                            />
+                            <select
+                                value={visitForm.purpose}
+                                onChange={(event) =>
+                                    setVisitForm((current) => ({
+                                        ...current,
+                                        purpose: event.target.value,
+                                    }))
+                                }
+                                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950"
+                            >
+                                <option>Walk-in workout</option>
+                                <option>Gym tour</option>
+                                <option>Trial session</option>
+                                <option>Guest pass</option>
+                                <option>Other</option>
+                            </select>
+                            <Input
+                                value={visitForm.notes}
+                                onChange={(event) =>
+                                    setVisitForm((current) => ({
+                                        ...current,
+                                        notes: event.target.value,
+                                    }))
+                                }
+                                placeholder="Notes"
+                            />
+                            <Button
+                                type="submit"
+                                className="bg-blue-600 text-white hover:bg-blue-700"
+                            >
+                                Log Entry
+                            </Button>
+                        </form>
+
+                        <div className="mt-4 overflow-x-auto">
+                            <table className="w-full min-w-[860px] text-left text-sm text-slate-600">
+                                <thead>
+                                    <tr className="border-y border-slate-100 bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+                                        <th className="px-4 py-3">Visitor</th>
+                                        <th className="px-4 py-3">Phone</th>
+                                        <th className="px-4 py-3">Purpose</th>
+                                        <th className="px-4 py-3">Entered</th>
+                                        <th className="px-4 py-3">Notes</th>
+                                        <th className="px-4 py-3">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {nonMemberVisits.length ? (
+                                        nonMemberVisits.map((visit) => (
+                                            <tr
+                                                key={visit.id}
+                                                className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
+                                            >
+                                                <td className="px-4 py-4 font-semibold text-slate-950">
+                                                    {visit.name}
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    {visit.phone || 'No phone'}
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    {visit.purpose}
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <p>{visit.entered_at}</p>
+                                                    <p className="mt-1 text-xs text-slate-400">
+                                                        By{' '}
+                                                        {visit.logged_by ??
+                                                            'admin'}
+                                                    </p>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    {visit.notes || 'None'}
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="border-rose-200 text-rose-700 hover:bg-rose-50"
+                                                        onClick={() =>
+                                                            removeVisit(
+                                                                visit.id,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Trash2 className="mr-2 size-4" />
+                                                        Remove
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td
+                                                colSpan={6}
+                                                className="px-4 py-8 text-center text-sm text-slate-500"
+                                            >
+                                                No non-member entries yet.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 <Card className="mt-6 rounded-lg border-slate-200 bg-white shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between gap-4">

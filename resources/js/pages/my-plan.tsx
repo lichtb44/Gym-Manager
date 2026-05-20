@@ -5,6 +5,7 @@ import {
     Dumbbell,
     ShieldCheck,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -73,6 +74,29 @@ const statusClass = (status: string) => {
     return 'bg-slate-50 text-slate-700 ring-slate-100';
 };
 
+const planChangeAmount = (
+    currentPlan: Plan | undefined,
+    selectedPlan: Plan,
+    planStartedAt?: string | null,
+) => {
+    if (!currentPlan || !planStartedAt) {
+        return Number(selectedPlan.price);
+    }
+
+    const startedAt = new Date(planStartedAt);
+
+    if (Number.isNaN(startedAt.getTime())) {
+        return Number(selectedPlan.price);
+    }
+
+    const daysSinceStart =
+        (Date.now() - startedAt.getTime()) / (1000 * 60 * 60 * 24);
+
+    return daysSinceStart < 3
+        ? Number(selectedPlan.price)
+        : Number(currentPlan.price) + Number(selectedPlan.price);
+};
+
 export default function MyPlan({
     member,
     plans = [],
@@ -87,6 +111,14 @@ export default function MyPlan({
         Boolean(member?.plan) &&
         member?.plan !== 'No plan yet' &&
         member?.status !== 'Pending';
+    const [currentTime] = useState(() => Date.now());
+    const startedAtDate = planStartedAt ? new Date(planStartedAt) : null;
+    const daysSinceStart =
+        startedAtDate && !Number.isNaN(startedAtDate.getTime())
+            ? (currentTime - startedAtDate.getTime()) / (1000 * 60 * 60 * 24)
+            : null;
+    const isWithinPlanChangeGrace =
+        daysSinceStart === null || daysSinceStart < 3;
 
     const selectPlan = (planName: string) => {
         if (member?.plan === planName || pendingPlan === planName) {
@@ -203,19 +235,25 @@ export default function MyPlan({
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-base">
                                     <CalendarDays className="size-5 text-violet-600" />
-                                    Plan Start Rule
+                                    Plan Change Rule
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3 text-sm text-slate-600">
                                 <p>
-                                    Attendance starts only when the selected
-                                    plan becomes active. If approval is enabled,
-                                    the timer starts after admin approval.
+                                    New members must start with Basic. During
+                                    the first 3 days, changing plans costs the
+                                    new plan price only. After 3 days, changing
+                                    plans costs the current plan plus the new
+                                    plan.
                                 </p>
                                 <p className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-700">
-                                    Current start:{' '}
+                                    Current rule:{' '}
                                     <span className="font-semibold">
-                                        {planStartedAt ?? 'Waiting for plan'}
+                                        {hasActivePlan
+                                            ? isWithinPlanChangeGrace
+                                                ? 'New plan price only'
+                                                : 'Current plan + new plan'
+                                            : 'Basic plan first'}
                                     </span>
                                 </p>
                             </CardContent>
@@ -243,6 +281,16 @@ export default function MyPlan({
                             {plans.map((plan) => {
                                 const isCurrent = member?.plan === plan.name;
                                 const isPending = pendingPlan === plan.name;
+                                const requiresBasicFirst =
+                                    !hasActivePlan &&
+                                    plan.name.toLowerCase() !== 'basic';
+                                const amountDue = hasActivePlan
+                                    ? planChangeAmount(
+                                          currentPlan,
+                                          plan,
+                                          planStartedAt,
+                                      )
+                                    : Number(plan.price);
                                 const actionLabel = hasActivePlan
                                     ? 'Request Change Plan'
                                     : 'Choose Plan';
@@ -287,6 +335,21 @@ export default function MyPlan({
                                                     'Membership access for your selected training level.'}
                                             </p>
 
+                                            {!isCurrent && (
+                                                <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                                                    <p className="text-slate-500">
+                                                        Amount due
+                                                    </p>
+                                                    <p className="mt-1 font-semibold text-slate-950">
+                                                        {requiresBasicFirst
+                                                            ? 'Start with Basic first'
+                                                            : currency(
+                                                                  amountDue,
+                                                              )}
+                                                    </p>
+                                                </div>
+                                            )}
+
                                             <div className="mt-5 space-y-2 text-sm text-slate-600">
                                                 <Feature text="Attendance starts after activation" />
                                                 <Feature text="Payment history stays linked" />
@@ -296,14 +359,18 @@ export default function MyPlan({
                                             <Button
                                                 type="button"
                                                 disabled={
-                                                    isCurrent || isPending
+                                                    isCurrent ||
+                                                    isPending ||
+                                                    requiresBasicFirst
                                                 }
                                                 className={`mt-6 w-full ${
-                                                    isCurrent || isPending
-                                                        ? isPending
-                                                            ? 'bg-amber-600 text-white hover:bg-amber-600'
-                                                            : 'bg-emerald-600 text-white hover:bg-emerald-600'
-                                                        : 'bg-violet-600 text-white hover:bg-violet-700'
+                                                    requiresBasicFirst
+                                                        ? 'bg-slate-200 text-slate-500 hover:bg-slate-200'
+                                                        : isCurrent || isPending
+                                                          ? isPending
+                                                              ? 'bg-amber-600 text-white hover:bg-amber-600'
+                                                              : 'bg-emerald-600 text-white hover:bg-emerald-600'
+                                                          : 'bg-violet-600 text-white hover:bg-violet-700'
                                                 }`}
                                                 onClick={() =>
                                                     selectPlan(plan.name)
@@ -313,7 +380,9 @@ export default function MyPlan({
                                                     ? 'Current Plan'
                                                     : isPending
                                                       ? 'Pending Approval'
-                                                      : actionLabel}
+                                                      : requiresBasicFirst
+                                                        ? 'Basic Required First'
+                                                        : actionLabel}
                                             </Button>
                                         </CardContent>
                                     </Card>

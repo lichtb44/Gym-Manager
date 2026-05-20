@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, react-hooks/set-state-in-effect */
 import { Head, router } from '@inertiajs/react';
 import {
     Activity,
@@ -43,6 +44,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { applyBodyWeightRecommendationToDetail } from '@/lib/workout-recommendations';
 import { dashboard } from '@/routes';
 
 interface Member {
@@ -50,6 +52,7 @@ interface Member {
     name: string;
     email: string;
     phone?: string;
+    body_weight_kg?: number | null;
     plan: string;
     plan_started_at?: string | null;
     status: string;
@@ -351,6 +354,7 @@ export default function Dashboard({
             };
 
             current.total += 1;
+
             if (row.status.toLowerCase() === 'present') {
                 current.present += 1;
             }
@@ -395,17 +399,29 @@ export default function Dashboard({
         planRows.find((plan) => plan.name === currentMember?.plan) ??
         planRows[0];
     const latestPayment = memberPayments[0];
-    const outstandingBalance = memberPayments.some(
-        (payment) => payment.status.toLowerCase() !== 'paid',
-    )
-        ? memberPayments.reduce(
-              (sum, payment) =>
-                  payment.status.toLowerCase() === 'paid'
-                      ? sum
-                      : sum + (Number(payment.amount) || 0),
-              0,
-          )
-        : 0;
+    const unpaidPaymentBalance = memberPayments.reduce(
+        (sum, payment) =>
+            payment.status.toLowerCase() === 'paid'
+                ? sum
+                : sum + (Number(payment.amount) || 0),
+        0,
+    );
+    const hasPaidCurrentPlan = memberPayments.some(
+        (payment) =>
+            payment.status.toLowerCase() === 'paid' &&
+            payment.plan === currentMember?.plan,
+    );
+    const hasBillableCurrentPlan =
+        Boolean(currentMember?.plan) &&
+        currentMember?.plan !== 'No plan yet' &&
+        currentMember?.status !== 'Pending' &&
+        Boolean(currentPlan);
+    const outstandingBalance =
+        unpaidPaymentBalance > 0
+            ? unpaidPaymentBalance
+            : hasBillableCurrentPlan && !hasPaidCurrentPlan
+              ? Number(currentPlan?.price) || 0
+              : 0;
     const memberFirstName =
         currentMember?.name?.split(' ')[0] || currentMember?.name || 'Member';
     const attendanceStartDate = parseDate(
@@ -950,71 +966,69 @@ export default function Dashboard({
             ) : (
                 <main className="min-h-screen bg-[#f7f8fb] text-slate-950">
                     <div className="min-w-0 px-4 py-5 sm:px-6 xl:px-8">
-                            <MemberDashboardHeader
-                                name={memberFirstName}
-                                profileMenuOpen={profileMenuOpen}
-                                onProfileMenuToggle={() =>
-                                    setProfileMenuOpen(!profileMenuOpen)
-                                }
-                                onLogout={handleLogout}
+                        <MemberDashboardHeader
+                            name={memberFirstName}
+                            profileMenuOpen={profileMenuOpen}
+                            onProfileMenuToggle={() =>
+                                setProfileMenuOpen(!profileMenuOpen)
+                            }
+                            onLogout={handleLogout}
+                        />
+
+                        <section className="mt-6 grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                            <FitnessStatCard
+                                icon={Dumbbell}
+                                title="Workouts This Week"
+                                value="0 / 6"
+                                detail="Start your first workout"
+                                tone="red"
+                                progress={0}
                             />
+                            <FitnessStatCard
+                                icon={Flame}
+                                title="Calories Burned"
+                                value="0"
+                                detail="0 from last week"
+                                tone="emerald"
+                                sparkline
+                            />
+                            <FitnessStatCard
+                                icon={ClockIcon}
+                                title="Time Trained"
+                                value="0h 0m"
+                                detail="0h 0m from last week"
+                                tone="blue"
+                                bars
+                            />
+                            <FitnessStatCard
+                                icon={Trophy}
+                                title="Current Streak"
+                                value="0 Days"
+                                detail="Start your streak"
+                                tone="amber"
+                                progress={0}
+                            />
+                        </section>
 
-                            <section className="mt-6 grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
-                                <FitnessStatCard
-                                    icon={Dumbbell}
-                                    title="Workouts This Week"
-                                    value="0 / 6"
-                                    detail="Start your first workout"
-                                    tone="red"
-                                    progress={0}
-                                />
-                                <FitnessStatCard
-                                    icon={Flame}
-                                    title="Calories Burned"
-                                    value="0"
-                                    detail="0 from last week"
-                                    tone="emerald"
-                                    sparkline
-                                />
-                                <FitnessStatCard
-                                    icon={ClockIcon}
-                                    title="Time Trained"
-                                    value="0h 0m"
-                                    detail="0h 0m from last week"
-                                    tone="blue"
-                                    bars
-                                />
-                                <FitnessStatCard
-                                    icon={Trophy}
-                                    title="Current Streak"
-                                    value="0 Days"
-                                    detail="Start your streak"
-                                    tone="amber"
-                                    progress={0}
-                                />
-                            </section>
+                        <section className="mt-6 grid gap-5 xl:grid-cols-[minmax(320px,0.95fr)_minmax(420px,1.1fr)_minmax(300px,0.82fr)]">
+                            <TodayWorkoutCard member={currentMember} />
+                            <WeeklyProgressCard attendancePercent={0} />
+                            <div className="grid content-start gap-5">
+                                <UpcomingClassesCard />
+                                <NutritionSummaryCard />
+                            </div>
+                        </section>
 
-                            <section className="mt-6 grid gap-5 xl:grid-cols-[minmax(320px,0.95fr)_minmax(420px,1.1fr)_minmax(300px,0.82fr)]">
-                                <TodayWorkoutCard member={currentMember} />
-                                <WeeklyProgressCard
-                                    attendancePercent={0}
-                                />
-                                <div className="grid content-start gap-5">
-                                    <UpcomingClassesCard />
-                                    <NutritionSummaryCard />
-                                </div>
-                            </section>
-
-                            <section className="mt-6 grid gap-5 xl:grid-cols-[minmax(320px,0.95fr)_minmax(420px,1.1fr)_minmax(300px,0.82fr)]">
-                                <RecentAchievementsCard />
-                                <MemberQuickActions />
-                                <MemberPlanMiniCard
-                                    currentMember={currentMember}
-                                    currentPlan={currentPlan}
-                                    latestPayment={latestPayment}
-                                    outstandingBalance={outstandingBalance}
-                                />
-                            </section>
+                        <section className="mt-6 grid gap-5 xl:grid-cols-[minmax(320px,0.95fr)_minmax(420px,1.1fr)_minmax(300px,0.82fr)]">
+                            <RecentAchievementsCard />
+                            <MemberQuickActions />
+                            <MemberPlanMiniCard
+                                currentMember={currentMember}
+                                currentPlan={currentPlan}
+                                latestPayment={latestPayment}
+                                outstandingBalance={outstandingBalance}
+                            />
+                        </section>
                     </div>
                 </main>
             )}
@@ -1057,9 +1071,7 @@ function MemberDashboardHeader({
     return (
         <header className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h1 className="text-2xl font-bold text-slate-950">
-                    Dashboard
-                </h1>
+                <h1 className="text-2xl font-bold text-slate-950">Dashboard</h1>
                 <p className="mt-1 text-sm text-slate-500">
                     Welcome back, {name}!
                 </p>
@@ -1738,15 +1750,38 @@ function TodayWorkoutCard({ member }: { member?: Member }) {
     const todayIndex = today.getDay();
     const selectedPlan = level && goal ? workoutPlans[level][goal] : null;
     const workout = selectedPlan?.[todayIndex];
+    const recommendedWorkout: WorkoutDay | undefined = workout
+        ? {
+              ...workout,
+              exercises: workout.exercises.map((exercise) => ({
+                  ...exercise,
+                  detail: applyBodyWeightRecommendationToDetail(
+                      exercise.name,
+                      exercise.detail,
+                      member?.body_weight_kg,
+                  ),
+              })),
+          }
+        : undefined;
     const savedWorkout: WorkoutDay | null =
         dailyWorkout && dailyWorkout.exercises.length
             ? {
                   title: dailyWorkout.title || "Today's Workout",
                   focus: `${dailyWorkout.focus || 'Custom'} - ${dailyWorkout.durationMin || 0} min`,
-                  exercises: dailyWorkout.exercises.map((exercise) => ({
-                      name: exercise.name,
-                      detail: `${exercise.sets} sets - ${exercise.reps} reps - ${exercise.weightKg} kg`,
-                  })),
+                  exercises: dailyWorkout.exercises.map((exercise) => {
+                      const baseDetail = `${exercise.sets} sets - ${exercise.reps} reps`;
+
+                      return {
+                          name: exercise.name,
+                          detail: exercise.weightKg
+                              ? `${baseDetail} - ${exercise.weightKg} kg`
+                              : applyBodyWeightRecommendationToDetail(
+                                    exercise.name,
+                                    baseDetail,
+                                    member?.body_weight_kg,
+                                ),
+                      };
+                  }),
               }
             : null;
     const customWorkout: WorkoutDay = {
@@ -1758,15 +1793,22 @@ function TodayWorkoutCard({ member }: { member?: Member }) {
             .filter(Boolean)
             .slice(0, 6)
             .map((line) => {
-                const [name, detail] = line.split('-').map((part) => part.trim());
+                const [name, detail] = line
+                    .split('-')
+                    .map((part) => part.trim());
 
                 return {
                     name: name || 'Exercise',
-                    detail: detail || 'Custom sets and reps',
+                    detail: applyBodyWeightRecommendationToDetail(
+                        name || 'Exercise',
+                        detail || 'Custom sets and reps',
+                        member?.body_weight_kg,
+                    ),
                 };
             }),
     };
-    const displayedWorkout = savedWorkout ?? (isBasicPlan ? customWorkout : workout);
+    const displayedWorkout =
+        savedWorkout ?? (isBasicPlan ? customWorkout : recommendedWorkout);
     const activeExercise = displayedWorkout?.exercises[activeExerciseIndex];
     const activeExerciseSets = activeExercise
         ? parseExerciseSets(activeExercise.detail)
@@ -1788,7 +1830,9 @@ function TodayWorkoutCard({ member }: { member?: Member }) {
 
         setActiveExerciseIndex(0);
         setActiveSet(1);
-        setActiveWeight(parseExerciseWeight(displayedWorkout.exercises[0].detail));
+        setActiveWeight(
+            parseExerciseWeight(displayedWorkout.exercises[0].detail),
+        );
         setLoggedSets([]);
         setRestSeconds(0);
         setElapsedSeconds(0);
@@ -1812,6 +1856,7 @@ function TodayWorkoutCard({ member }: { member?: Member }) {
         if (activeSet < activeExerciseSets) {
             setActiveSet((current) => current + 1);
             setRestSeconds(90);
+
             return;
         }
 
@@ -1825,6 +1870,7 @@ function TodayWorkoutCard({ member }: { member?: Member }) {
                 ),
             );
             setRestSeconds(90);
+
             return;
         }
 
@@ -1918,9 +1964,7 @@ function TodayWorkoutCard({ member }: { member?: Member }) {
         return (
             <Card className="rounded-lg border-0 bg-white/75 shadow-sm">
                 <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">
-                        Choose Your Goal
-                    </CardTitle>
+                    <CardTitle className="text-lg">Choose Your Goal</CardTitle>
                     <p className="mt-1 text-sm text-slate-600">
                         {level === 'beginner'
                             ? 'Beginner plans run 5 workout days and 2 rest days.'
@@ -1960,7 +2004,9 @@ function TodayWorkoutCard({ member }: { member?: Member }) {
         <Card className="rounded-lg border-0 bg-white/75 shadow-sm">
             <CardHeader className="flex flex-row items-start justify-between pb-3">
                 <div>
-                    <CardTitle className="text-lg">Today&apos;s Workout</CardTitle>
+                    <CardTitle className="text-lg">
+                        Today&apos;s Workout
+                    </CardTitle>
                     <p className="mt-1 text-sm text-slate-600">
                         {displayedWorkout?.focus ?? 'Workout plan'} -{' '}
                         {weekdayNames[todayIndex]}
@@ -2002,7 +2048,9 @@ function TodayWorkoutCard({ member }: { member?: Member }) {
                         onClick={startWorkout}
                     >
                         <Play className="mr-2 size-4 fill-current" />
-                        {displayedWorkout?.rest ? 'Rest Today' : 'Start Workout'}
+                        {displayedWorkout?.rest
+                            ? 'Rest Today'
+                            : 'Start Workout'}
                     </Button>
                     <Button
                         variant="outline"
@@ -2120,7 +2168,8 @@ function ActiveWorkoutOverlay({
                             {exercise.name}
                         </h2>
                         <p className="mt-1 text-sm text-slate-500">
-                            {workout.title} - {formatSessionTime(elapsedSeconds)}
+                            {workout.title} -{' '}
+                            {formatSessionTime(elapsedSeconds)}
                         </p>
                     </div>
                     <Button type="button" variant="outline" onClick={onClose}>
@@ -2392,9 +2441,21 @@ function NutritionSummaryCard() {
                         </div>
                     </div>
                     <div className="grid content-center gap-3 text-sm">
-                        <MacroDot color="bg-red-500" label="Protein" value="0g / 150g" />
-                        <MacroDot color="bg-emerald-500" label="Carbs" value="0g / 250g" />
-                        <MacroDot color="bg-amber-500" label="Fats" value="0g / 80g" />
+                        <MacroDot
+                            color="bg-red-500"
+                            label="Protein"
+                            value="0g / 150g"
+                        />
+                        <MacroDot
+                            color="bg-emerald-500"
+                            label="Carbs"
+                            value="0g / 250g"
+                        />
+                        <MacroDot
+                            color="bg-amber-500"
+                            label="Fats"
+                            value="0g / 80g"
+                        />
                     </div>
                 </div>
                 <div className="mt-5">

@@ -158,6 +158,7 @@ export function AppSidebar() {
                             <div className="grid gap-2">
                                 {mainNavItems.slice(0, 1).map((item) => {
                                     const active = isCurrentUrl(item.href);
+
                                     return (
                                         <Link
                                             key={item.title}
@@ -310,6 +311,7 @@ export function AppSidebar() {
                         <div className="grid gap-2">
                             {mainNavItems.slice(0, 1).map((item) => {
                                 const active = isCurrentUrl(item.href);
+
                                 return (
                                     <Link
                                         key={item.title}
